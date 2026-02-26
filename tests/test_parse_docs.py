@@ -114,6 +114,7 @@ A project using Python {python_version}
 def test_python_version_matrix():
     """Test Python version matrix generation for different Python versions"""
     test_cases = [
+        ("3.14", 'python-version: ["3.14"]'),
         ("3.13", 'python-version: ["3.13"]'),
         ("3.12", 'python-version: ["3.12"]'),
         ("3.11", 'python-version: ["3.11"]'),

@@ -42,7 +42,7 @@ class RichArgumentParser(argparse.ArgumentParser):
         help_text.append("The type of project to create (default: lib)\n")
 
         help_text.append("  -p, --python ", style="bold yellow")
-        help_text.append("[3.13|3.12|3.11|3.10] ", style="italic green")
+        help_text.append("[3.14|3.13|3.12|3.11|3.10] ", style="italic green")
         help_text.append("The python version to use (default: 3.12)\n")
 
         help_text.append("  -w, --workspace ", style="bold yellow")
@@ -93,7 +93,7 @@ def parse_args() -> argparse.Namespace:
         usage=(
             "uv-init project_name "
             "[-t lib|package|app] "
-            "[-p 3.13|3.12|3.11|3.10] "
+            "[-p 3.14|3.13|3.12|3.11|3.10] "
             "[-w] [-g] [--private]\n"
             "       uv-init --config NAME EMAIL"
         ),
@@ -127,7 +127,7 @@ def parse_args() -> argparse.Namespace:
         "--python",
         help="The python version to use",
         default="3.13",
-        choices=["3.13", "3.12", "3.11", "3.10"],
+        choices=["3.14", "3.13", "3.12", "3.11", "3.10"],
     )
 
     parser.add_argument(

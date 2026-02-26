@@ -23,7 +23,7 @@ Options
      - Project type to create. **lib** (default) creates a simple library
        with a ``src/`` layout. **package** creates an installable package
        with an entry-point script.
-   * - ``-p, --python [3.13|3.12|3.11|3.10]``
+   * - ``-p, --python [3.14|3.13|3.12|3.11|3.10]``
      - Python version for the new project (default: **3.13**).
    * - ``-w, --workspace``
      - Create a `uv workspace <https://docs.astral.sh/uv/concepts/projects/workspaces/>`_
