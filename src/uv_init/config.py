@@ -4,6 +4,7 @@ Provides a fallback chain for author info: config file -> git config -> defaults
 Config is stored at ~/.config/uv-init/config.toml.
 """
 
+import os
 import subprocess
 import tomllib
 from dataclasses import dataclass
@@ -14,6 +15,17 @@ from rich.panel import Panel
 
 CONFIG_DIR = Path.home() / ".config" / "uv-init"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
+
+
+def clean_env() -> dict[str, str]:
+    """Return a copy of the current environment with VIRTUAL_ENV removed.
+
+    Prevents uv subprocess warnings when the tool is run inside an activated
+    virtualenv that doesn't match the target project's environment.
+    """
+    env = os.environ.copy()
+    env.pop("VIRTUAL_ENV", None)
+    return env
 
 
 @dataclass

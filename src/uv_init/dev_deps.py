@@ -3,6 +3,7 @@ from pathlib import Path
 
 from rich import print as rprint
 
+from uv_init.config import clean_env
 from uv_init.exceptions import ConfigError, DependencyError
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "template"
@@ -16,6 +17,7 @@ def add_dev_dependencies(project_name: str, project_path: Path) -> None:
             ["uv", "add", "python-dotenv"],
             check=True,
             cwd=project_path,
+            env=clean_env(),
         )
         subprocess.run(
             [
@@ -30,6 +32,7 @@ def add_dev_dependencies(project_name: str, project_path: Path) -> None:
             ],
             check=True,
             cwd=project_path,
+            env=clean_env(),
         )
         # Install pre-commit hooks
         subprocess.run(
@@ -45,6 +48,7 @@ def add_dev_dependencies(project_name: str, project_path: Path) -> None:
             ],
             check=True,
             cwd=project_path,
+            env=clean_env(),
         )
         rprint(
             "[green]Development dependencies and pre-commit hooks added successfully.[/green]"

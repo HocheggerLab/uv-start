@@ -32,6 +32,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/uv_init"]
 
+[tool.hatch.build.targets.sdist]
+exclude = [".claude"]
+
 [dependency-groups]
 dev = [
     "commitizen>=4.0.0",

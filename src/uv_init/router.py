@@ -6,6 +6,7 @@ from pathlib import Path
 from rich import print as rprint
 from rich.prompt import Prompt
 
+from uv_init.config import clean_env
 from uv_init.exceptions import ProjectCreationError
 
 
@@ -64,6 +65,7 @@ class CommandDispatcher:
                 ],
                 check=True,
                 cwd=self.original_cwd,
+                env=clean_env(),
             )
             # Create tests directory
             tests_dir = self.project_path / "tests"
@@ -120,6 +122,7 @@ class CommandDispatcher:
                 ],
                 check=True,
                 cwd=self.project_path / "packages",
+                env=clean_env(),
             )
             subprocess.run(
                 [
@@ -130,6 +133,7 @@ class CommandDispatcher:
                 ],
                 check=True,
                 cwd=self.project_path,
+                env=clean_env(),
             )
             rprint("[green]✓[/green] Successfully added common_utils'")
         except subprocess.CalledProcessError as e:
@@ -150,6 +154,7 @@ class CommandDispatcher:
                 ],
                 check=True,
                 cwd=self.project_path / "packages",
+                env=clean_env(),
             )
             subprocess.run(
                 [
@@ -160,6 +165,7 @@ class CommandDispatcher:
                 ],
                 check=True,
                 cwd=self.project_path,
+                env=clean_env(),
             )
             rprint(f"[green]✓[/green] Successfully created {project_name}")
         except subprocess.CalledProcessError as e:

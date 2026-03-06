@@ -4,6 +4,7 @@ from pathlib import Path
 
 from rich import print as rprint
 
+from uv_init.config import clean_env
 from uv_init.exceptions import GitSetupError
 
 
@@ -29,27 +30,31 @@ def setup_git_repo(
             ["git", "add", "."],
             check=True,
             cwd=project_path,
+            env=clean_env(),
         )
         first = subprocess.run(
             ["git", "commit", "-m", "chore: initial commit"],
             cwd=project_path,
+            env=clean_env(),
         )
         if first.returncode != 0:
             subprocess.run(
                 ["git", "add", "."],
                 check=True,
                 cwd=project_path,
+                env=clean_env(),
             )
             subprocess.run(
                 ["git", "commit", "-m", "chore: initial commit"],
                 check=True,
                 cwd=project_path,
+                env=clean_env(),
             )
 
         # Prepare environment for gh command
         # Remove any stale GH_TOKEN/GITHUB_TOKEN that could override
         # gh auth login credentials. Only pass through if explicitly set.
-        env = dict(os.environ)
+        env = clean_env()
         github_token = os.environ.get("GH_TOKEN") or os.environ.get(
             "GITHUB_TOKEN"
         )
