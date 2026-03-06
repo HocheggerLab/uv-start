@@ -28,7 +28,7 @@ Key features
   and set up CI/CD workflows with a single flag
 - **Workspace support** — scaffold monorepo workspaces with shared
   utilities and multiple sub-projects
-- **Python version selection** — target Python 3.10 through 3.13
+- **Python version selection** — target Python 3.10 through 3.14
 
 Quick start
 -----------

@@ -84,7 +84,6 @@ def _parse_replacement(args: Namespace, content_path: Path) -> dict[str, str]:
         "{package_name}": parent_dir_name,
         "{module_name}": module_name,
         "src/{module_name}/__init__.py": f"src/{module_name}/__init__.py",
-        "v$version": f"{parent_dir_name}-v$version",
         'python-version: ["3.12"]': f'python-version: ["{target_version}"]',
         "python-version: '3.12'": f"python-version: '{target_version}'",
     }

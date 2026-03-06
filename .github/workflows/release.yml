@@ -40,35 +40,14 @@ jobs:
           git log -1 --pretty=%B >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Log commit message format check
-        run: |
-          if echo "${{ env.COMMIT_MSG }}" | grep -qE "^[a-z]+(\([^)]+\))?: "; then
-            echo "Conventional commit detected – a version bump will be applied."
-          else
-            echo "Non-conventional commit detected – no version bump will be applied."
-          fi
-
       - name: Attempt version bump (if applicable)
         run: |
-          set -e
           COMMIT_MSG="${{ env.COMMIT_MSG }}"
-          # Only perform a bump if the commit message is conventional.
-          if echo "$COMMIT_MSG" | grep -qE "^[a-z]+(\([^)]+\))?: "; then
-            PACKAGE=""
-            # Check for a package scope in the commit message (e.g., "fix(package): ...")
-            if echo "$COMMIT_MSG" | grep -qE "^[a-z]+\([^)]+\)"; then
-              PACKAGE=$(echo "$COMMIT_MSG" | sed -n 's/^[a-z]\+(\([^)]\+\)).*/\1/p')
-            fi
-            # Use the package if it exists, otherwise bump the root package.
-            if [ -n "$PACKAGE" ] && [ -d "packages/$PACKAGE" ]; then
-              echo "Bumping version for package: $PACKAGE"
-              cd "packages/$PACKAGE"
-            else
-              echo "No package scope found or package directory does not exist. Using root package."
-            fi
+          if echo "$COMMIT_MSG" | grep -qE "^(fix|feat|refactor|perf)(\([^)]+\))?\!?: "; then
+            echo "Conventional commit detected – bumping version."
             cz bump --yes || echo "No version bump occurred."
           else
-            echo "Skipping version bump because commit message is not conventional."
+            echo "Non-bump commit type – skipping version bump."
           fi
 
       - name: Push changes

@@ -64,20 +64,23 @@ This project is licensed under the MIT License
   - Structured logging with environment configuration
 - GitHub repository initialization with CI/CD workflows
 - Semantic versioning support
-- Python 3.10+ support for project initialisation
+- Python 3.10–3.14 support for project initialisation
 
 ---
 
 ## Installation
 
-This package is not deployed on PyPI. To use, clone this repository and install using:
-pip install, uv pip install, or uv add.
-
-Requires a .env file in the project’s root directory with the following values:
-```env
-AUTHOR_NAME=’John Doe’
-AUTHOR_EMAIL=’johndoe@email.com’
+```bash
+git clone https://github.com/Helfrid/uv-init.git
+cd uv-init && uv sync
 ```
+
+Configure your author details (run once):
+```bash
+uv-init --config "Jane Doe" "jane@example.com"
+```
+
+If you skip this step, uv-init falls back to your `git config` (`user.name` / `user.email`).
 
 GitHub authentication is handled by the `gh` CLI. Run `gh auth login` to authenticate.
 ---
@@ -113,10 +116,11 @@ uv-init project-name [options]
 
 Options:
 - `-t, --type [lib|package]`: The type of project to create (default: lib, alternative: package)
-- `-p, --python [3.3.12|3.11|3.10]`: Python version to use (default: 3.12)
+- `-p, --python [3.14|3.13|3.12|3.11|3.10]`: Python version to use (default: 3.13)
 - `-w, --workspace`: Create a workspace (monorepo setup)
 - `-g, --github`: Create and initialize a GitHub repository
 - `--private`: Create a private GitHub repository (requires --github)
+- `--config NAME EMAIL`: Save author name and email for project templates
 
 ### Examples
 
@@ -201,7 +205,7 @@ UV Init sets up the following development tools:
 - Uses conventional commits
 - Automatic version bumping
 - Changelog generation
-- Version tracking in multiple files
+- Synchronized version tracking across all workspace packages
 
 #### Logging
 - Console and file logging configurable via environment variables
@@ -217,6 +221,7 @@ When creating a workspace (`-w` flag), UV Init:
 - Offers to create a common utilities package
 - Supports adding multiple projects
 - Configures dependencies between workspace packages
+- **Synchronized versioning**: All packages in the workspace share a single version number. Running `cz bump` at the root updates `pyproject.toml`, `__init__.py`, and `README.md` across all sub-packages simultaneously.
 
 ---
 
@@ -244,6 +249,7 @@ additional --private flag for optional private repos
 - Automatic version bumping on main branch
 - Creates releases based on conventional commits
 - Generates changelogs
+- For workspaces, a single `cz bump` at the root keeps all packages in sync
 
 ---
 

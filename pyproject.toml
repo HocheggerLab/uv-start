@@ -116,6 +116,11 @@ annotated_tag = true
 [tool.uv.sources]
 uv-init = { workspace = true }
 
+[tool.uv.workspace]
+members = [
+    "test-gh",
+]
+
 
 [tool.ty.src]
 exclude = ["src/uv_init/template/"]

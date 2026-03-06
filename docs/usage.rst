@@ -201,6 +201,23 @@ changelog but **do not** trigger a version bump.
    bump the **minor** version instead of major, following the
    `SemVer spec for 0.x releases <https://semver.org/#spec-item-4>`_.
 
+Workspace versioning
+^^^^^^^^^^^^^^^^^^^^
+
+When a workspace is created with ``-w``, all packages share a **single
+synchronized version**. The commitizen configuration lives only in the
+root ``pyproject.toml`` and its ``version_files`` list covers every
+sub-package:
+
+- ``src/<module>/__init__.py`` — ``__version__`` string
+- ``pyproject.toml`` — ``version`` field
+- ``README.md`` — version badge
+
+Running ``cz bump`` at the workspace root updates all of these files
+across the root project and every sub-package in one step. The release
+CI workflow does the same automatically when a conventional commit lands
+on ``main``.
+
 GitHub CI/CD workflows
 ----------------------
 
@@ -216,6 +233,7 @@ When ``--github`` is used, two GitHub Actions workflows are created:
 
 - Automatic version bumping based on conventional commits
 - GitHub release creation with changelog
+- For workspaces, bumps the single synchronized version across all packages
 
 Logging system
 --------------

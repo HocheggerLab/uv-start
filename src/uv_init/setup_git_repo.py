@@ -20,17 +20,31 @@ def setup_git_repo(
     """
     repo_name = project_name
     try:
-        # Create initial commit
+        # Create initial commit.
+        # Pre-commit hooks (e.g. end-of-file-fixer) may auto-fix
+        # staged files and abort the first commit with exit code 1.
+        # The fixes persist in the working tree, so we re-stage and
+        # commit again — exactly like doing it manually.
         subprocess.run(
             ["git", "add", "."],
             check=True,
             cwd=project_path,
         )
-        subprocess.run(
+        first = subprocess.run(
             ["git", "commit", "-m", "chore: initial commit"],
-            check=True,
             cwd=project_path,
         )
+        if first.returncode != 0:
+            subprocess.run(
+                ["git", "add", "."],
+                check=True,
+                cwd=project_path,
+            )
+            subprocess.run(
+                ["git", "commit", "-m", "chore: initial commit"],
+                check=True,
+                cwd=project_path,
+            )
 
         # Prepare environment for gh command
         # Remove any stale GH_TOKEN/GITHUB_TOKEN that could override
