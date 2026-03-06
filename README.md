@@ -7,7 +7,7 @@ This package integrates uv commands with a template for development configs, com
 ---
 
 ## Status
-Version: ![version](https://img.shields.io/badge/version-0.5.0-blue)
+Version: ![version](https://img.shields.io/badge/version-0.5.1-blue)
 [![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
