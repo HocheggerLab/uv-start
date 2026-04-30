@@ -47,7 +47,7 @@ jobs:
           COMMIT_MSG="${{ env.COMMIT_MSG }}"
           if echo "$COMMIT_MSG" | grep -qE "^(fix|feat|refactor|perf)(\([^)]+\))?\!?: "; then
             echo "Conventional commit detected – bumping version."
-            cz bump --yes --no-changelog && echo "bumped=true" >> $GITHUB_OUTPUT || echo "bumped=false" >> $GITHUB_OUTPUT
+            cz bump --yes && echo "bumped=true" >> $GITHUB_OUTPUT || echo "bumped=false" >> $GITHUB_OUTPUT
           else
             echo "Non-bump commit type – skipping version bump."
             echo "bumped=false" >> $GITHUB_OUTPUT
