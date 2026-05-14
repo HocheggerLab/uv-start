@@ -30,6 +30,9 @@ class CommandDispatcher:
 
     def dispatch(self) -> None:
         """Route to appropriate command handler based on argument pattern"""
+        if getattr(self.args, "napari", False):
+            self._create_napari_project()
+            return
         if getattr(self.args, "data", False):
             self._create_data_project()
             return
@@ -142,6 +145,48 @@ class CommandDispatcher:
         except subprocess.CalledProcessError as e:
             raise ProjectCreationError(
                 f"Failed to create common_utils: {e}"
+            ) from e
+
+    def _create_napari_project(self) -> None:
+        """Create a napari plugin project with a hello-world widget."""
+        rprint(
+            f"[green]Creating napari plugin project at {self.original_cwd}...[/green]"
+        )
+        try:
+            subprocess.run(
+                [
+                    "uv",
+                    "init",
+                    self.args.project_name,
+                    "--package",
+                    "--python",
+                    self.args.python,
+                ],
+                check=True,
+                cwd=self.original_cwd,
+                env=clean_env(),
+            )
+            subprocess.run(
+                [
+                    "uv",
+                    "add",
+                    "napari[all]",
+                    "magicgui",
+                ],
+                check=True,
+                cwd=self.project_path,
+                env=clean_env(),
+            )
+            tests_dir = self.project_path / "tests"
+            tests_dir.mkdir(exist_ok=True)
+            with open(tests_dir / "test_init.py", "w") as f:
+                f.write("def test_init():\n    assert True\n")
+            rprint(
+                f"[green]✓[/green] Successfully created napari plugin project '[bold]{self.args.project_name}[/bold]'"
+            )
+        except subprocess.CalledProcessError as e:
+            raise ProjectCreationError(
+                f"Failed to create napari plugin project: {e}"
             ) from e
 
     def _create_data_project(self) -> None:

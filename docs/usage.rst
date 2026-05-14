@@ -38,6 +38,13 @@ Options
      - Create a data analysis project. Installs Jupyter, pandas, matplotlib,
        and seaborn. No ``src/`` layout — just a flat project with a starter
        notebook, lab matplotlib style, and colour palette.
+   * - ``--napari``
+     - Create a `napari <https://napari.org/>`_ plugin project. Installs
+       ``napari[all]`` and ``magicgui``, scaffolds a hello-world dock widget,
+       a ``napari.yaml`` manifest, and the
+       ``[project.entry-points."napari.manifest"]`` block in
+       ``pyproject.toml``. Uses the standard ``src/`` layout and full
+       dev-tool configuration.
    * - ``--config NAME EMAIL``
      - Save author name and email for project templates.
        Stored in ``~/.config/uv-start/config.toml``.
@@ -133,6 +140,41 @@ Combine with ``--github`` to create a GitHub repository at the same time:
 
    uv-start my-analysis --data -g
 
+Create a napari plugin project
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   uv-start my-plugin --napari
+
+Creates a standard ``src/my_plugin/`` package pre-wired as a napari plugin:
+
+- **napari[all]** and **magicgui** installed as runtime dependencies
+- ``src/my_plugin/napari.yaml`` — plugin manifest with one widget contribution
+- ``src/my_plugin/_widget.py`` — hello-world ``magic_factory`` dock widget
+- ``[project.entry-points."napari.manifest"]`` block appended to
+  ``pyproject.toml`` so the manifest is discovered when the package is
+  installed
+- Full dev-tool stack (ruff, ty, pytest, commitizen, pre-commit)
+
+After scaffolding, run the widget end-to-end with:
+
+.. code-block:: bash
+
+   cd my-plugin
+   uv sync
+   uv run napari
+
+Then in napari, open ``Plugins → my-plugin → Hello Widget`` to see the
+``Say hello`` button.
+
+Combine with ``--github`` to publish the plugin repository at the same
+time:
+
+.. code-block:: bash
+
+   uv-start my-plugin --napari -g
+
 Generated project structure
 ---------------------------
 
@@ -179,6 +221,25 @@ Data analysis project
    ├── README.md
    ├── .env.example
    └── .gitignore
+
+napari plugin project
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+   plugin-name/
+   ├── src/
+   │   └── plugin_name/
+   │       ├── __init__.py
+   │       ├── config.py
+   │       ├── napari.yaml      ← plugin manifest
+   │       └── _widget.py       ← hello-world magicgui widget
+   ├── tests/
+   ├── pyproject.toml           ← includes [project.entry-points."napari.manifest"]
+   ├── README.md
+   ├── LICENSE
+   ├── .env.example
+   └── .pre-commit-config.yaml
 
 Development tools configured
 -----------------------------

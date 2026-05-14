@@ -61,6 +61,11 @@ class RichArgumentParser(argparse.ArgumentParser):
             "Create a data analysis project (jupyter, pandas, matplotlib, seaborn)\n"
         )
 
+        help_text.append("  --napari ", style="bold yellow")
+        help_text.append(
+            "Create a napari plugin project (hello-world widget scaffold)\n"
+        )
+
         help_text.append("\n  --config NAME EMAIL ", style="bold yellow")
         help_text.append(
             "Configure author name and email for project templates\n"
@@ -161,6 +166,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--data",
         help="Create a data analysis project (jupyter, pandas, matplotlib, seaborn)",
+        action="store_true",
+        default=False,
+    )
+
+    parser.add_argument(
+        "--napari",
+        help="Create a napari plugin project (hello-world widget scaffold)",
         action="store_true",
         default=False,
     )

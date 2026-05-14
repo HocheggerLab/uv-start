@@ -1,0 +1,10 @@
+name: {project_name}
+display_name: {project_name}
+contributions:
+  commands:
+    - id: {project_name}.hello_widget
+      title: Hello Widget
+      python_name: {module_name}._widget:hello_widget
+  widgets:
+    - command: {project_name}.hello_widget
+      display_name: Hello Widget

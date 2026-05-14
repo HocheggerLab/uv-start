@@ -1,0 +1,2 @@
+[project.entry-points."napari.manifest"]
+{project_name} = "{module_name}:napari.yaml"

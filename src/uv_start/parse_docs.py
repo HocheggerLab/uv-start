@@ -77,6 +77,42 @@ def parse_docs_data(args: Namespace, project_dir: Path) -> None:
     rprint("[green]Data project template files copied successfully.[/green]")
 
 
+def parse_docs_napari(args: Namespace, project_dir: Path) -> None:
+    """Set up template files for a napari plugin project.
+
+    Runs the standard project template setup, then copies napari.yaml and
+    a hello-world widget into src/<module>/, and appends the napari
+    manifest entry point to pyproject.toml.
+    """
+    parse_docs(args, project_dir)
+
+    module_name = args.project_name.replace("-", "_")
+    src_dir = project_dir / "src" / module_name
+
+    shutil.copy(TEMPLATE_DIR / "napari.yaml", src_dir / "napari.yaml")
+    shutil.copy(TEMPLATE_DIR / "_widget.py", src_dir / "_widget.py")
+    rprint("[green]napari.yaml and _widget.py copied to package[/green]")
+
+    replacements = {
+        "{project_name}": args.project_name,
+        "{module_name}": module_name,
+    }
+    manifest_path = src_dir / "napari.yaml"
+    content = manifest_path.read_text()
+    for old, new in replacements.items():
+        content = content.replace(old, new)
+    manifest_path.write_text(content)
+
+    entry_points_template = (
+        TEMPLATE_DIR / "napari-entry-points.toml"
+    ).read_text()
+    for old, new in replacements.items():
+        entry_points_template = entry_points_template.replace(old, new)
+    with (project_dir / "pyproject.toml").open("a") as f:
+        f.write(f"\n{entry_points_template}\n")
+    rprint("[green]napari entry points appended to pyproject.toml[/green]")
+
+
 def _copy_template(template: str, project_dir: Path) -> None:
     """Copy template files to the build directory"""
     try:

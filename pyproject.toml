@@ -131,6 +131,7 @@ uv-start = { workspace = true }
 [tool.uv.workspace]
 members = [
     "test-gh",
+    "segmentation-plugin",
 ]
 
 

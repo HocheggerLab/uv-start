@@ -75,6 +75,14 @@ def test_parse_args_config():
         assert args.project_name is None
 
 
+def test_parse_args_napari_flag():
+    """Test --napari flag parses to args.napari == True"""
+    with patch("sys.argv", ["uv-start", "my-plugin", "--napari"]):
+        args = parse_args()
+        assert args.napari is True
+        assert args.data is False
+
+
 def test_parse_args_no_project_name_no_config():
     """Test that missing project_name without --config is an error"""
     with patch("sys.argv", ["uv-start"]), pytest.raises(SystemExit):

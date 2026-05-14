@@ -145,6 +145,8 @@ Options:
 - `-w, --workspace`: Create a workspace (monorepo setup)
 - `-g, --github`: Create and initialize a GitHub repository
 - `--private`: Create a private GitHub repository (requires --github)
+- `--data`: Create a data analysis project (jupyter, pandas, matplotlib, seaborn)
+- `--napari`: Create a napari plugin project (hello-world widget scaffold)
 - `--config NAME EMAIL`: Save author name and email for project templates
 
 ### Examples

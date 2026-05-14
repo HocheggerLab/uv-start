@@ -104,6 +104,28 @@ def test_invalid_project_type(base_args, temp_cwd, mock_fs):
         dispatcher.dispatch()
 
 
+def test_napari_project(mock_subprocess, base_args, temp_cwd, mock_fs):
+    """Test creating a napari plugin project"""
+    base_args.type = "lib"
+    base_args.napari = True
+    base_args.data = False
+
+    with patch("builtins.open", create=True):
+        dispatcher = CommandDispatcher(base_args, temp_cwd)
+        dispatcher.dispatch()
+
+    calls = mock_subprocess.call_args_list
+    assert calls[0].args[0] == [
+        "uv",
+        "init",
+        "test-project",
+        "--package",
+        "--python",
+        "3.12",
+    ]
+    assert calls[1].args[0] == ["uv", "add", "napari[all]", "magicgui"]
+
+
 def test_subprocess_error(mock_subprocess, base_args, temp_cwd, mock_fs):
     """Test handling subprocess error"""
     args = base_args
