@@ -1,3 +1,12 @@
+## v0.7.1 (2026-06-24)
+
+### Fix
+
+- name change in docs
+- cancel in-progress Pages deployment on new push
+- speed up docs CI with uv caching, drop redundant great-docs install
+- use subclass to set formatter_class for ty compatibility
+
 ## v0.7.0 (2026-06-24)
 
 ### Feat
