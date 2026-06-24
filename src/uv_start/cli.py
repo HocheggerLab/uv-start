@@ -163,12 +163,15 @@ def cli(
 
 # Plain-click alias for great-docs CLI introspection.
 # rich_click's RichHelpFormatter requires a `config` kwarg that great-docs
-# doesn't pass, causing AttributeError. This alias uses the unpatched
+# doesn't pass, causing AttributeError. This subclass uses the unpatched
 # formatter so great-docs can document the CLI without triggering that error.
-_docs_cli = _PlainCommand(
+class _DocsCommand(_PlainCommand):  # type: ignore[misc, valid-type]
+    formatter_class = _OriginalHelpFormatter
+
+
+_docs_cli = _DocsCommand(
     name=cli.name,
     callback=cli.callback,
     params=list(cli.params),
     help=cli.help,
 )
-_docs_cli.formatter_class = _OriginalHelpFormatter
