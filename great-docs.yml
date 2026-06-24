@@ -42,13 +42,13 @@ dynamic: true
 # Author metadata for display in the landing page sidebar
 # You can add additional fields: github, orcid, affiliation, homepage
 authors:
-  - name: hh65
+  - name: Helfrid Hochegger
     role: Author
     affiliation: University of Sussex
     email: hh65@sussex.ac.uk
     # github:
     # orcid:
-    # homepage:
+    homepage: https://www.hocheggerlab.org
 
 # Funding / Copyright Holder
 # --------------------------
