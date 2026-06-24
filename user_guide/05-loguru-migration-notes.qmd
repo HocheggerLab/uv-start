@@ -1,0 +1,166 @@
+---
+title: "Loguru migration notes"
+---
+
+This repository has migrated from the standard library `logging` module to
+[loguru](https://github.com/Delgan/loguru) for all generated project logging.
+
+## What changed
+
+- `template/config.py` — replaced `logging` boilerplate with a single-file loguru
+  setup (console sink at `INFO`, colorised output)
+- `template/config_dotenv.py` — new env-driven variant for `--dotenv` projects
+- `template/logging_setup.py` — new shared setup module for workspace projects
+- `template/logging_setup_dotenv.py` — dotenv variant for workspace projects
+- `src/uv_start/dev_deps.py` — `loguru` is now always added as a runtime dependency;
+  `python-dotenv` is added only when `--dotenv` is passed
+- `src/uv_start/parse_docs.py` — `_init_version` now wires `from . import config` in
+  `__init__.py` for single-package projects; workspace members get `setup_logging_once`
+  at their `main()` entry point
+
+## Why loguru
+
+The standard `logging` module requires significant boilerplate (handlers, formatters,
+`getLogger` calls) and produces plain text output. Loguru provides:
+
+- **Zero config**: `from loguru import logger` and you are ready to log
+- **Colourised console output** out of the box
+- **Structured tracebacks** with full context and variable values (`diagnose=True`)
+- **Rotating file sinks** with compression and retention in a single call
+- **One global logger**: no per-module `getLogger(__name__)` factory needed
+
+## How logging works in new projects
+
+### Single-package projects
+
+The package `__init__.py` imports `config` on package load:
+
+```python
+# src/my_package/__init__.py
+from . import config  # noqa: F401
+```
+
+`config.py` removes loguru's default handler and installs a colourised console sink:
+
+```python
+# src/my_package/config.py
+import sys
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stderr, level="INFO", colorize=True)
+```
+
+After this runs (which happens the moment you `import my_package`), the global
+`logger` is ready. In any module within the package:
+
+```python
+from loguru import logger
+
+logger.info("Running analysis")
+logger.debug("x = {}", x)
+```
+
+### Workspace projects
+
+In a workspace, configuring loguru in each package's `__init__.py` would cause
+last-one-wins clobbering — whichever package is imported last silently resets all
+the sinks.
+
+The solution is to configure logging exactly once, at the application entry point,
+using `common-utils`:
+
+```
+workspace-root/
+└── packages/
+    ├── common_utils/         ← always created; hosts shared logging setup
+    │   └── src/common_utils/
+    │       └── logging_setup.py
+    └── my-app/
+        └── src/my_app/
+            └── __init__.py   ← calls setup_logging_once() in main()
+```
+
+`common_utils/logging_setup.py` provides two functions:
+
+```python
+def setup_logging(*, level: str = "INFO", log_file: str | None = None) -> None:
+    """Configure loguru's sinks. Call ONCE at entry point, never on import."""
+    ...
+
+def setup_logging_once(...) -> None:
+    """Idempotent variant — first call configures, later calls are no-ops."""
+    ...
+```
+
+Library packages in the workspace (`common_utils` itself, shared utilities) only
+**emit** log messages — they never configure sinks:
+
+```python
+# In any library package
+from loguru import logger
+
+logger.debug("Processing item {}", item)
+```
+
+Application packages call `setup_logging_once()` inside `main()`:
+
+```python
+# src/my_app/__init__.py
+from common_utils.logging_setup import setup_logging_once
+from loguru import logger
+
+
+def main() -> None:
+    setup_logging_once()
+    logger.info("Hello from my-app!")
+```
+
+This guarantees that sinks are configured exactly once, regardless of how many
+packages are imported or in what order.
+
+## Adding a rotating file sink
+
+In any project, uncomment (or add) a file sink after the console sink in `config.py`:
+
+```python
+logger.add(
+    "logs/app.log",
+    level="DEBUG",
+    rotation="1 MB",
+    retention=5,
+    compression="zip",
+    backtrace=True,
+    diagnose=True,
+)
+```
+
+In a workspace, pass `log_file` to `setup_logging_once()` at startup:
+
+```python
+def main() -> None:
+    setup_logging_once(level="DEBUG", log_file="logs/app.log")
+```
+
+## Environment-driven log level (`--dotenv`)
+
+Scaffold with `--dotenv` to get env-var-aware config. Copy `.env.example` to `.env`
+and set:
+
+```bash
+LOG_LEVEL=DEBUG
+LOG_FILE=logs/app.log
+```
+
+Recognised variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `INFO` | Minimum level for all sinks |
+| `LOG_FILE` | *(unset)* | Path for rotating file sink |
+| `ENV` | `development` | Loads `.env.<ENV>` overrides if present |
+
+::: {.callout-warning}
+Never commit `.env` — it is gitignored by default. Use `.env.example` as the
+committed template.
+:::
