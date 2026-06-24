@@ -272,3 +272,4 @@ docker-compose.override.yml
 ignore claude
 
 /.claude
+great-docs/
