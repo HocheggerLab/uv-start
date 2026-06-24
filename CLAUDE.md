@@ -95,9 +95,12 @@ Template files support variable replacement for project name, author information
 
 ## Dependencies and Tools
 
-**Core Dependencies:**
-- `python-dotenv`: Environment variable management
+**Core Dependencies (the tool itself):**
 - `rich`: Enhanced terminal output and CLI formatting
+
+**Dependencies added to generated projects** (`dev_deps.py`):
+- `loguru`: logging (always added)
+- `python-dotenv`: only added with the `--dotenv` flag, for env-driven log config
 
 **Development Dependencies:**
 - Standard Python development stack (ruff, mypy, pytest, pre-commit, commitizen)

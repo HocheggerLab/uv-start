@@ -14,6 +14,11 @@ from uv_start.exceptions import TemplateError
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "template"
 
+# Name of the shared utilities package always created in a workspace. It
+# is the cycle-free home for the loguru logging setup that the root and
+# every member import.
+COMMON_UTILS_MODULE = "common_utils"
+
 
 def parse_docs(args: Namespace, project_dir: Path) -> None:
     """Parse the README.md file and update the content with project information."""
@@ -22,15 +27,23 @@ def parse_docs(args: Namespace, project_dir: Path) -> None:
         "LICENSE",
         ".gitignore",
         ".pre-commit-config.yaml",
-        ".env.example",
     ]:
         _copy_template(template, project_dir)
 
-    # Copy config.py to src/project_name
+    # .env handling is opt-in (python-dotenv + .env.example).
+    if getattr(args, "dotenv", False):
+        _copy_template(".env.example", project_dir)
+
+    # Copy the loguru logging config to src/project_name. The dotenv
+    # variant reads LOG_LEVEL/LOG_FILE/ENV from the environment.
+    # Workspaces are the exception: their shared logging lives in the
+    # common-utils package (see _init_version), so the root must not also
+    # configure loguru on import or the two would clobber each other.
     module_name = args.project_name.replace("-", "_")
     src_dir = project_dir / "src" / module_name
     src_dir.mkdir(parents=True, exist_ok=True)
-    _copy_template("config.py", src_dir)
+    if not getattr(args, "workspace", False):
+        _copy_config(args, src_dir)
     vs_code_dir = project_dir / ".vscode"
     vs_code_dir.mkdir(parents=True, exist_ok=True)
     _copy_template("settings.json", vs_code_dir)
@@ -49,8 +62,11 @@ def parse_docs_data(args: Namespace, project_dir: Path) -> None:
     Copies .gitignore, .env.example, the hhlab matplotlib style, and a
     starter sample.ipynb into the project root. No src/ structure is created.
     """
-    for template in [".gitignore", ".env.example", "README.md"]:
+    for template in [".gitignore", "README.md"]:
         _copy_template(template, project_dir)
+
+    if getattr(args, "dotenv", False):
+        _copy_template(".env.example", project_dir)
 
     _copy_template("hhlab_style01.mplstyle", project_dir)
     _copy_template("colors.py", project_dir)
@@ -129,6 +145,46 @@ def _copy_template(template: str, project_dir: Path) -> None:
         raise TemplateError(f"{template} template not found") from e
 
 
+def _copy_config(args: Namespace, src_dir: Path) -> None:
+    """Copy the logging config into ``src/<module>/config.py``.
+
+    Uses ``config_dotenv.py`` (env-driven) when ``--dotenv`` is set,
+    otherwise the minimal loguru ``config.py``. Either way the file lands
+    as ``config.py`` in the package.
+    """
+    source = (
+        "config_dotenv.py" if getattr(args, "dotenv", False) else "config.py"
+    )
+    try:
+        shutil.copy(TEMPLATE_DIR / source, src_dir / "config.py")
+        rprint("[green]config.py copied to package[/green]")
+    except FileNotFoundError as e:
+        raise TemplateError(f"{source} template not found") from e
+
+
+def copy_logging_setup(
+    package_dir: Path, module_name: str, *, dotenv: bool = False
+) -> None:
+    """Copy the shared loguru logging setup into a workspace utils package.
+
+    Lands as ``<package_dir>/src/<module_name>/logging_setup.py``. Uses the
+    ``logging_setup_dotenv.py`` variant when ``dotenv`` is True, otherwise
+    the minimal console-only ``logging_setup.py``.
+
+    Args:
+        package_dir: Path to the common-utils package directory.
+        module_name: Import name of the package (e.g. ``common_utils``).
+        dotenv: When True, use the env-driven (python-dotenv) variant.
+    """
+    source = "logging_setup_dotenv.py" if dotenv else "logging_setup.py"
+    dest = package_dir / "src" / module_name / "logging_setup.py"
+    try:
+        shutil.copy(TEMPLATE_DIR / source, dest)
+        rprint("[green]logging_setup.py copied to common-utils[/green]")
+    except FileNotFoundError as e:
+        raise TemplateError(f"{source} template not found") from e
+
+
 def _update_configs(project_dir: Path, args: Namespace) -> None:
     """Update the configuration files with project information."""
     for template in ["README.md", "LICENSE", "pyproject.toml"]:
@@ -195,22 +251,36 @@ def _update_content(
 
 
 def _init_version(args: Namespace, project_dir: Path) -> None:
-    """Initialize the version file with imports and version."""
+    """Initialize package ``__init__.py`` files with version and wiring.
+
+    Logging follows the loguru rule that configuration happens once at an
+    application entry point, never as an import side effect:
+
+    - In a **workspace**, the shared ``common-utils`` package owns the
+      logging setup. Application members (created with ``--app``) call
+      ``setup_logging_once`` from their ``main()``; library packages
+      (``common-utils``, lib/package roots) only emit and never configure.
+    - In a **single-package** project, the package configures loguru on
+      import via its own ``config.py`` (the simple, self-contained case).
+    """
+    workspace = getattr(args, "workspace", False)
+    root_type = getattr(args, "type", None)
     try:
         package_name = args.project_name.replace("-", "_")
 
         # Handle root project's __init__.py
         root_init = project_dir / "src" / package_name / "__init__.py"
-        with root_init.open("w") as f:
-            f.write(
-                '__version__ = "0.1.0"\n\n'
-                "from .config import set_env_vars\n\n"
-                "# Initialize environment variables\n"
-                "set_env_vars()\n"
-            )
-        rprint("[green]Root __init__.py initialized with config setup[/green]")
+        if not workspace:
+            # Preserve uv's generated entry point (e.g. main()); just add
+            # version + the config import that configures loguru on import.
+            _write_single_package_init(root_init)
+        elif root_type == "app":
+            root_init.write_text(_app_init_body(package_name))
+        else:
+            root_init.write_text(_library_init_body())
+        rprint("[green]Root __init__.py initialized[/green]")
 
-        # Handle sub-packages (if workspace)
+        # Handle sub-packages (workspace members)
         if (project_dir / "packages").exists():
             for sub_package in (project_dir / "packages").iterdir():
                 if sub_package.is_dir():
@@ -218,14 +288,63 @@ def _init_version(args: Namespace, project_dir: Path) -> None:
                     sub_init = (
                         sub_package / f"src/{sub_package_name}/__init__.py"
                     )
+                    # common-utils is a library (it defines the setup); it
+                    # must never configure on import. Every other member is
+                    # an --app, so it configures in its main().
+                    body = (
+                        _library_init_body()
+                        if sub_package_name == COMMON_UTILS_MODULE
+                        else _app_init_body(sub_package_name)
+                    )
                     with sub_init.open("w") as f:
-                        f.write('__version__ = "0.1.0"\n')
+                        f.write(body)
                     rprint(
                         f"[green]Version file initialized for {sub_package_name}[/green]"
                     )
 
     except FileNotFoundError as e:
         raise TemplateError("Version file not found") from e
+
+
+def _write_single_package_init(root_init: Path) -> None:
+    """Add version + config import to uv's generated ``__init__.py``.
+
+    Prepends the version string and the ``config`` import (which
+    configures loguru on import) while **preserving** whatever uv
+    generated — notably the ``main()`` entry point that
+    ``[project.scripts]`` points at, so the console script keeps working.
+    """
+    header = (
+        '__version__ = "0.1.0"\n\n'
+        "# Importing config configures loguru's sinks on package import.\n"
+        "from . import config  # noqa: F401\n"
+    )
+    existing = root_init.read_text()
+    body = f"{header}\n\n{existing.lstrip()}" if existing.strip() else header
+    root_init.write_text(body)
+
+
+def _library_init_body() -> str:
+    """Library package: emit only, never configure logging on import."""
+    return '__version__ = "0.1.0"\n'
+
+
+def _app_init_body(module_name: str) -> str:
+    """Application package: configure logging once at the ``main()`` entry.
+
+    The shared ``setup_logging_once`` lives in common-utils and is called
+    from ``main()`` (the ``[project.scripts]`` entry point), not on
+    import, so libraries imported alongside don't get reconfigured.
+    """
+    return (
+        '__version__ = "0.1.0"\n\n'
+        f"from {COMMON_UTILS_MODULE}.logging_setup import setup_logging_once\n"
+        "from loguru import logger\n\n\n"
+        "def main() -> None:\n"
+        '    """Entry point: configure logging once, then run."""\n'
+        "    setup_logging_once()\n"
+        f'    logger.info("Hello from {module_name}!")\n'
+    )
 
 
 def _add_github_workflows(project_dir: Path) -> None:

@@ -8,6 +8,7 @@ from rich.prompt import Prompt
 
 from uv_start.config import clean_env
 from uv_start.exceptions import ProjectCreationError
+from uv_start.parse_docs import COMMON_UTILS_MODULE, copy_logging_setup
 
 
 @dataclass
@@ -94,19 +95,20 @@ class CommandDispatcher:
             ) from e
 
     def _initialize_workspace(self) -> None:
-        """Initialize workspace configuration after project creation"""
+        """Initialize workspace configuration after project creation.
+
+        A ``common-utils`` library is always created: it is the only
+        cycle-free home for the shared loguru logging setup that the root
+        and every member import (the root depends on its members, so the
+        shared code must sit at the bottom of the dependency graph).
+        """
         packages_path = self.project_path / "packages"
         packages_path.mkdir(exist_ok=True)
         rprint("[green]Initializing workspace...[/green]")
-        common_utils = Prompt.ask(
-            "Do you want to add common utilities?",
-            choices=["y", "n"],
-            default="n",
-        )
 
-        if common_utils == "y":
-            utils_name = Prompt.ask("Enter the name of the utils library: ")
-            self._add_common_utils(utils_name)
+        # common-utils is mandatory — it hosts the shared logging setup.
+        self._add_common_utils(COMMON_UTILS_MODULE)
+
         other_projects = Prompt.ask(
             "Do you want to add other projects?",
             choices=["y", "n"],
@@ -117,7 +119,14 @@ class CommandDispatcher:
             self._add_other_projects(project_name)
 
     def _add_common_utils(self, utils_name: str) -> None:
-        """Add common utilities to the workspace"""
+        """Create the shared common-utils library with logging setup.
+
+        Adds loguru (and python-dotenv when ``--dotenv`` is set) to the
+        package, drops in ``logging_setup.py``, and registers it as an
+        editable workspace dependency of the root project.
+        """
+        package_dir = self.project_path / "packages" / utils_name
+        dotenv = getattr(self.args, "dotenv", False)
         try:
             subprocess.run(
                 [
@@ -130,6 +139,15 @@ class CommandDispatcher:
                 cwd=self.project_path / "packages",
                 env=clean_env(),
             )
+            # Logging dependencies for the shared setup module.
+            deps = ["loguru"] + (["python-dotenv"] if dotenv else [])
+            subprocess.run(
+                ["uv", "add", *deps],
+                check=True,
+                cwd=package_dir,
+                env=clean_env(),
+            )
+            copy_logging_setup(package_dir, utils_name, dotenv=dotenv)
             subprocess.run(
                 [
                     "uv",
@@ -141,10 +159,10 @@ class CommandDispatcher:
                 cwd=self.project_path,
                 env=clean_env(),
             )
-            rprint("[green]✓[/green] Successfully added common_utils'")
+            rprint("[green]✓[/green] Successfully added common-utils")
         except subprocess.CalledProcessError as e:
             raise ProjectCreationError(
-                f"Failed to create common_utils: {e}"
+                f"Failed to create common-utils: {e}"
             ) from e
 
     def _create_napari_project(self) -> None:
@@ -229,7 +247,14 @@ class CommandDispatcher:
             ) from e
 
     def _add_other_projects(self, project_name: str) -> None:
-        """Add other projects to the workspace"""
+        """Add another project to the workspace.
+
+        The member depends on ``common-utils`` (resolved via the
+        workspace) so it can call the shared ``setup_logging`` at its
+        entry point, and is itself registered as an editable dependency
+        of the root project.
+        """
+        member_dir = self.project_path / "packages" / project_name
         try:
             subprocess.run(
                 [
@@ -241,6 +266,13 @@ class CommandDispatcher:
                 ],
                 check=True,
                 cwd=self.project_path / "packages",
+                env=clean_env(),
+            )
+            # Depend on the shared logging package (workspace source).
+            subprocess.run(
+                ["uv", "add", COMMON_UTILS_MODULE.replace("_", "-")],
+                check=True,
+                cwd=member_dir,
                 env=clean_env(),
             )
             subprocess.run(

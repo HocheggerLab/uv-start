@@ -41,8 +41,7 @@ Helfrid Hochegger
 ## Contact
 Created by Helfrid Hochegger
 Email: hh65@sussex.ac.uk
-GitHub Issues: https://github.com/Helfrid/uv-start/issues
-
+GitHub Issues: https://github.com/hocheggerlab/uv-start/issues
 ---
 
 ## License
@@ -61,7 +60,7 @@ This project is licensed under the MIT License
   - Pytest for testing
   - Commitizen for conventional commits
   - Pre-commit hooks
-  - Structured logging with environment configuration
+  - loguru logging (opt-in `.env` configuration via `--dotenv`)
 - GitHub repository initialization with CI/CD workflows
 - Semantic versioning support
 - Python 3.10–3.14 support for project initialisation
@@ -101,9 +100,10 @@ Follow the interactive prompts to authenticate via OAuth (browser). This stores 
 
 ### Environment configuration
 
-Each generated project includes a `.env.example` file with placeholder values for the logging configuration. Copy it to `.env` to activate it:
+By default, generated projects log to the console via [loguru](https://github.com/Delgan/loguru) with no `.env` file required. Scaffold with `--dotenv` to opt into environment-driven logging — this adds `python-dotenv` and a `.env.example` you can copy to activate:
 
 ```bash
+uv-start my-project --dotenv
 cp .env.example .env
 ```
 
@@ -147,6 +147,7 @@ Options:
 - `--private`: Create a private GitHub repository (requires --github)
 - `--data`: Create a data analysis project (jupyter, pandas, matplotlib, seaborn)
 - `--napari`: Create a napari plugin project (hello-world widget scaffold)
+- `--dotenv`: Add `.env` handling (python-dotenv) for env-driven log configuration
 - `--config NAME EMAIL`: Save author name and email for project templates
 
 ### Examples
@@ -211,11 +212,8 @@ UV Init sets up the following development tools:
 - **Pytest**: Testing framework
 - **Commitizen**: Conventional commit tooling
 - **Pre-commit**: Git hooks manager
-- **Logging**: Configurable logging setup with:
-  - Console and file handlers
-  - Environment variable configuration
-  - Rotating file handler
-  - Different log levels for development/production
+- **loguru**: Logging with a colourised console sink by default and an
+  opt-in rotating file sink; env-driven configuration available via `--dotenv`
 
 ### Development Tools Configuration
 
@@ -235,11 +233,11 @@ UV Init sets up the following development tools:
 - Changelog generation
 - Synchronized version tracking across all workspace packages
 
-#### Logging
-- Console and file logging configurable via environment variables
-- Rotating file handler with customizable size and backup count
-- Log format includes timestamp, level, filename, and line number
-- Environment-specific configuration support (.env.development, .env.production)
+#### Logging (loguru)
+- Colourised console sink at `INFO` by default — no configuration required
+- Rotating file sink included (commented out) with rotation, retention and compression
+- Global `logger` (`from loguru import logger`); module/function/line captured automatically
+- `--dotenv` adds env-driven config (`LOG_LEVEL`, `LOG_FILE`, `ENV`) with `.env`/`.env.<ENV>` support
 
 ---
 

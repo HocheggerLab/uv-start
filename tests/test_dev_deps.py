@@ -17,13 +17,24 @@ def test_add_dev_dependencies_success():
 
         add_dev_dependencies("fake_project", project_path)
 
-        # Check python-dotenv installation
+        # loguru is always added as the runtime logging dependency
         assert mock_run.call_args_list[0] == call(
-            ["uv", "add", "python-dotenv"],
+            ["uv", "add", "loguru"],
             check=True,
             cwd=project_path,
             env=ANY,
-        ), "Failed to install python-dotenv"
+        ), "Failed to install loguru"
+
+        # python-dotenv must NOT be added without the --dotenv flag
+        assert (
+            call(
+                ["uv", "add", "python-dotenv"],
+                check=True,
+                cwd=project_path,
+                env=ANY,
+            )
+            not in mock_run.call_args_list
+        ), "python-dotenv should not be added by default"
 
         # Check dev dependencies installation
         assert mock_run.call_args_list[1] == call(
@@ -58,6 +69,30 @@ def test_add_dev_dependencies_success():
             cwd=project_path,
             env=ANY,
         ), "Failed to install pre-commit hooks"
+
+
+def test_add_dev_dependencies_with_dotenv():
+    """With dotenv=True, python-dotenv is added right after loguru."""
+    project_path = Path("/fake/path")
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+
+        add_dev_dependencies("fake_project", project_path, dotenv=True)
+
+        assert mock_run.call_args_list[0] == call(
+            ["uv", "add", "loguru"],
+            check=True,
+            cwd=project_path,
+            env=ANY,
+        ), "loguru should be added first"
+
+        assert mock_run.call_args_list[1] == call(
+            ["uv", "add", "python-dotenv"],
+            check=True,
+            cwd=project_path,
+            env=ANY,
+        ), "python-dotenv should be added when dotenv=True"
 
 
 def test_add_dev_dependencies_failure():

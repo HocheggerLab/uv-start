@@ -1,5 +1,5 @@
 uv-start
-=======
+========
 
 **uv-start** is a command-line tool that wraps the
 `uv <https://docs.astral.sh/uv/>`_ package manager to scaffold
@@ -36,7 +36,7 @@ Quick start
 .. code-block:: bash
 
    # Clone and install
-   git clone https://github.com/Helfrid/uv-start.git
+   git clone https://github.com/hocheggerlab/uv-start/issues
    cd uv-start && uv sync
 
    # Create a new library project

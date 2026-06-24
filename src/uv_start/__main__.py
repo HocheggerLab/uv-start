@@ -7,7 +7,7 @@ from pathlib import Path
 from rich import print as rprint
 from rich.panel import Panel
 
-from uv_start.cli import parse_args
+from uv_start.cli import cli
 from uv_start.dev_deps import add_dev_dependencies, parse_dev_configs
 from uv_start.exceptions import GitSetupError, UvInitError
 from uv_start.parse_docs import parse_docs, parse_docs_data, parse_docs_napari
@@ -42,11 +42,19 @@ def initialize_uv_start(args: Namespace) -> None:
         if getattr(args, "data", False):
             parse_docs_data(args, dispatcher.project_path)
         elif getattr(args, "napari", False):
-            add_dev_dependencies(args.project_name, dispatcher.project_path)
+            add_dev_dependencies(
+                args.project_name,
+                dispatcher.project_path,
+                dotenv=getattr(args, "dotenv", False),
+            )
             parse_dev_configs(dispatcher.project_path)
             parse_docs_napari(args, dispatcher.project_path)
         else:
-            add_dev_dependencies(args.project_name, dispatcher.project_path)
+            add_dev_dependencies(
+                args.project_name,
+                dispatcher.project_path,
+                dotenv=getattr(args, "dotenv", False),
+            )
             parse_dev_configs(dispatcher.project_path)
             parse_docs(args, dispatcher.project_path)
     except UvInitError as e:
@@ -81,13 +89,8 @@ def initialize_uv_start(args: Namespace) -> None:
 
 
 def main() -> None:
-    args = parse_args()
-    if args.config:
-        from uv_start.config import save_config
-
-        save_config(name=args.config[0], email=args.config[1])
-        return
-    initialize_uv_start(args)
+    """Console-script entry point. Delegates to the click command."""
+    cli()
 
 
 if __name__ == "__main__":

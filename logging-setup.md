@@ -1,145 +1,105 @@
-# Comprehensive Logging Setup for Python Projects
+# Logging Setup for Generated Projects
 
-In this blog post, I'll describe the logging system I've implemented in my project. This setup provides flexible, configurable logging that adapts to different environments while remaining easy to use throughout the codebase.
+Projects scaffolded by `uv-start` use [loguru](https://github.com/Delgan/loguru)
+for logging. This replaces the older stdlib `logging` + `RotatingFileHandler`
+setup with a much smaller, friendlier configuration while keeping the same
+"works out of the box" philosophy.
 
 ## Core Design Philosophy
 
-My logging system follows these key principles:
-- **Environment-based configuration**: Different environments (development, production, etc.) can have different logging settings
-- **Multiple output targets**: Support for both console and file logging
-- **Sensible defaults**: Works out-of-the-box with reasonable settings
-- **Centralized configuration**: One place to manage all logging settings
-- **Simple developer experience**: Easy to use in any module
+- **Sensible defaults**: colourised console logging works immediately, no setup.
+- **One place to configure**: all sink configuration lives in
+  `src/<package>/config.py`.
+- **Simple developer experience**: a single global `logger`, no per-module
+  factory.
+- **Opt-in environment control**: env-var-driven configuration is available via
+  the `--dotenv` flag for projects that need it.
 
-## Environment Configuration
+## The config module
 
-The logging system uses environment variables loaded from `.env` files to control its behavior. This allows flexible configuration without code changes:
+Importing the package runs `from . import config` (in `__init__.py`), which
+configures loguru's sinks exactly once. The default `config.py` is tiny:
 
 ```python
-# Load environment variables based on the ENV variable
-def set_env_vars() -> None:
-    # Set default environment variables if .env doesn't exist
-    os.environ.setdefault("LOG_LEVEL", "INFO")
-    os.environ.setdefault("LOG_FILE_PATH", "logs/app.log")
-    os.environ.setdefault("ENABLE_CONSOLE_LOGGING", "True")
-    os.environ.setdefault("ENABLE_FILE_LOGGING", "True")
+import sys
 
-    # First load the minimal .env to get the ENV variable
-    minimal_env_path = project_root / ".env"
-    if minimal_env_path.exists():
-        load_dotenv(minimal_env_path)
+from loguru import logger
 
-    # Then load environment-specific settings (e.g., .env.development)
-    ENV = os.getenv("ENV", "development").lower()
-    env_specific_path = project_root / f".env.{ENV}"
-    if env_specific_path.exists():
-        load_dotenv(env_specific_path, override=True)
+logger.remove()
+logger.add(sys.stderr, level="INFO", colorize=True)
+
+# Uncomment to also write rotating log files:
+# logger.add(
+#     "logs/app.log", level="DEBUG", rotation="1 MB",
+#     retention=5, compression="zip", backtrace=True, diagnose=True,
+# )
 ```
 
-This pattern allows for a layered configuration approach:
-1. Default values if nothing else is specified
-2. Base configuration in `.env`
-3. Environment-specific overrides in `.env.<environment>`
+`logger.remove()` drops loguru's default handler so we start from a clean
+slate; each `logger.add(...)` registers an independent **sink** with its own
+level, format and rotation policy.
 
-## The Logger Factory
+## Using the logger
 
-The heart of the system is the `get_logger` function, which acts as a factory for properly configured loggers:
-
-```python
-def get_logger(name: str) -> logging.Logger:
-    # Intelligent handling of __main__ and module paths
-    if name == "__main__":
-        # Logic to determine correct module name
-        # ...
-
-    # Get or create the logger
-    logger = logging.getLogger(name)
-
-    # Configure root logger if not already done
-    root_logger = logging.getLogger("{module_name}")
-    if not root_logger.handlers:
-        # Configure based on environment variables
-        # ...
-
-    return logger
-```
-
-This approach ensures:
-1. Loggers use the correct module name for better traceability
-2. Root configuration happens only once
-3. All loggers inherit the same base configuration
-
-## Output Handlers
-
-The system supports both console and file logging, controlled by environment variables:
+There is no `get_logger()` factory — import the global logger directly:
 
 ```python
-# Console Handler
-if ENABLE_CONSOLE_LOGGING:
-    ch = logging.StreamHandler()
-    configure_log_handler(ch, LOG_LEVEL, formatter, root_logger)
-
-# File Handler with rotation
-if ENABLE_FILE_LOGGING:
-    log_path = Path(LOG_FILE_PATH)
-    if log_dir := log_path.parent:
-        log_dir.mkdir(parents=True, exist_ok=True)
-
-    fh = RotatingFileHandler(
-        LOG_FILE_PATH,
-        maxBytes=LOG_MAX_BYTES,
-        backupCount=LOG_BACKUP_COUNT,
-    )
-    configure_log_handler(fh, LOG_LEVEL, formatter, root_logger)
-```
-
-The `RotatingFileHandler` provides log rotation capabilities, preventing log files from growing too large and managing archival automatically.
-
-## Using the Logger
-
-Using this logger in any module is straightforward:
-
-```python
-# In any module of your project
-from template.config import get_logger
-
-# Get a logger for this module
-logger = get_logger(__name__)
+from loguru import logger
 
 def some_function():
     logger.debug("Starting function execution")
     try:
-        # Do something
+        ...
         logger.info("Operation completed successfully")
-    except Exception as e:
-        logger.error(f"Error occurred: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Operation failed")  # full diagnostic traceback
         raise
 ```
 
-## Key Features and Benefits
+Loguru records the module, function and line automatically, so there is no
+need to pass `__name__` or resolve `__main__` by hand.
 
-1. **Smart Module Names**: Even when running a file directly (`__main__`), the logger attempts to determine the proper module path.
+## Console vs file, and log levels
 
-2. **Automatic Directory Creation**: If logging to a file, the system ensures the log directory exists.
+Terminal and file output are simply two `logger.add()` calls. Each sink sets
+its own minimum level via the `level=` argument — there is no separate
+"logger level". This means the console can stay at `INFO` while the file
+captures `DEBUG`. File rotation, retention and compression are built in:
 
-3. **Configurable Formatting**: The log format is configurable through environment variables.
+```python
+logger.add(
+    "logs/app.log",
+    level="DEBUG",
+    rotation="1 MB",     # rotate when the file reaches 1 MB
+    retention=5,         # keep 5 rotated files
+    compression="zip",   # compress rotated files
+)
+```
 
-4. **Log Rotation**: Prevents log files from consuming too much disk space.
+## Environment-driven configuration (`--dotenv`)
 
-5. **Environment Adaptability**: Easily switch between development (verbose console logging) and production (critical issues to files) configurations.
+Scaffolding with `uv-start <name> --dotenv` swaps in a `config.py` that reads
+its configuration from environment variables (optionally loaded from `.env` /
+`.env.<ENV>` via `python-dotenv`) and ships a `.env.example`:
 
-6. **Centralized Configuration**: All logging settings in one place, making it easy to maintain and update.
+| Variable    | Default       | Description                                          |
+| ----------- | ------------- | ---------------------------------------------------- |
+| `LOG_LEVEL` | `INFO`        | Minimum level for the console (and file) sink        |
+| `LOG_FILE`  | *(unset)*     | If set, also write a rotating log file to this path  |
+| `ENV`       | `development` | Selects the `.env.<ENV>` overrides file if present   |
 
-## Configurable Parameters
+The loading strategy is: base `.env` → `.env.<ENV>` (overriding) → code-level
+defaults for anything unset. In production you typically set real environment
+variables rather than shipping a `.env` file.
 
-Some key parameters that can be set via environment variables:
+## Why loguru?
 
-- `LOG_LEVEL`: Controls verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- `LOG_FORMAT`: The format string for log messages
-- `ENABLE_CONSOLE_LOGGING`: Whether to output logs to the console
-- `ENABLE_FILE_LOGGING`: Whether to output logs to files
-- `LOG_FILE_PATH`: Where log files are stored
-- `LOG_MAX_BYTES`: Maximum size before rotating log files
-- `LOG_BACKUP_COUNT`: Number of backup log files to keep
+- ~25 lines instead of ~160.
+- Rotation/retention/compression without `RotatingFileHandler` boilerplate.
+- Colourised console output and rich tracebacks (`backtrace`/`diagnose`).
+- Automatic module/function/line capture — no `__main__` inspection hacks.
 
-This logging setup provides a robust foundation for any Python application, balancing ease of use with flexibility and power.
+Note that loguru is a separate system from stdlib `logging`; logs emitted by
+third-party libraries through stdlib `logging` are **not** captured unless you
+add an `InterceptHandler` bridge. The generated config keeps things minimal and
+does not include one by default.

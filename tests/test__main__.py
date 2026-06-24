@@ -164,6 +164,22 @@ def test_basic_app_project(temp_project_dir):
         for version in ['__version__ = "0.1.0"', "__version__ = '0.1.0'"]
     ), "Version string not found in __init__.py"
 
+    # uv's generated main() entry point must be preserved (not clobbered),
+    # so the [project.scripts] console script keeps working.
+    assert "def main" in init_content, (
+        "uv's main() entry point was clobbered in __init__.py"
+    )
+    assert "[project.scripts]" in pyproject_content, (
+        "Console script entry missing from pyproject.toml"
+    )
+    # Single-package projects still configure loguru on import via config.py
+    assert "from . import config" in init_content, (
+        "config import missing from __init__.py"
+    )
+    assert (project_path / "src" / "test_app" / "config.py").exists(), (
+        "config.py not created for single-package project"
+    )
+
 
 def test_workspace_project(temp_project_dir):
     """Test creating a workspace project"""
@@ -178,15 +194,60 @@ def test_workspace_project(temp_project_dir):
         github=False,
     )
 
-    with patch(
-        "rich.prompt.Prompt.ask", side_effect=["y", "common_utils", "n"]
-    ):
+    # common-utils is always created; then we add an app member ("worker")
+    # to exercise the entry-point logging wiring.
+    with patch("rich.prompt.Prompt.ask", side_effect=["y", "worker"]):
         initialize_uv_start(args)
 
     # Verify workspace structure
     assert (project_path / "packages").exists(), (
         "Packages directory not created"
     )
+
+    # common-utils is always scaffolded with the shared logging setup
+    logging_setup = (
+        project_path
+        / "packages"
+        / "common_utils"
+        / "src"
+        / "common_utils"
+        / "logging_setup.py"
+    )
+    assert logging_setup.exists(), "common-utils logging_setup.py not created"
+    setup_src = logging_setup.read_text()
+    assert "def setup_logging" in setup_src, (
+        "setup_logging not defined in common-utils"
+    )
+    assert "def setup_logging_once" in setup_src, (
+        "setup_logging_once guard not defined in common-utils"
+    )
+
+    # common-utils is a library: it must NOT configure logging on import
+    common_init = (
+        project_path
+        / "packages"
+        / "common_utils"
+        / "src"
+        / "common_utils"
+        / "__init__.py"
+    ).read_text()
+    assert "setup_logging" not in common_init, (
+        "common-utils must not configure logging on import"
+    )
+
+    # The app member configures logging once at its main() entry point
+    worker_init = (
+        project_path / "packages" / "worker" / "src" / "worker" / "__init__.py"
+    ).read_text()
+    assert "def main" in worker_init, "App member should keep a main() entry"
+    assert "setup_logging_once()" in worker_init, (
+        "App member should configure logging in main()"
+    )
+
+    # The lib root is a library: no config.py, no logging on import
+    assert not (
+        project_path / "src" / "test_workspace" / "config.py"
+    ).exists(), "Workspace lib root should not have its own config.py"
     assert (project_path / "pyproject.toml").exists(), (
         "pyproject.toml not created"
     )

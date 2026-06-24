@@ -45,6 +45,11 @@ Options
        ``[project.entry-points."napari.manifest"]`` block in
        ``pyproject.toml``. Uses the standard ``src/`` layout and full
        dev-tool configuration.
+   * - ``--dotenv``
+     - Add ``.env`` handling for environment-driven logging. Installs
+       ``python-dotenv``, ships a ``.env.example``, and uses the
+       env-var-aware logging config (``LOG_LEVEL``/``LOG_FILE``/``ENV``).
+       Omit it for the default loguru config (console only, no ``.env``).
    * - ``--config NAME EMAIL``
      - Save author name and email for project templates.
        Stored in ``~/.config/uv-start/config.toml``.
@@ -186,12 +191,13 @@ Standard project
    project-name/
    ├── src/
    │   └── project_name/
-   │       └── __init__.py
+   │       ├── __init__.py
+   │       └── config.py            ← loguru logging setup
    ├── tests/
    ├── pyproject.toml
    ├── README.md
    ├── LICENSE
-   ├── .env.example
+   ├── .env.example                 ← only with --dotenv
    └── .pre-commit-config.yaml
 
 Workspace
@@ -219,7 +225,7 @@ Data analysis project
    ├── CLAUDE.md                ← AI instructions for consistent figure style
    ├── pyproject.toml
    ├── README.md
-   ├── .env.example
+   ├── .env.example             ← only with --dotenv
    └── .gitignore
 
 napari plugin project
@@ -238,7 +244,7 @@ napari plugin project
    ├── pyproject.toml           ← includes [project.entry-points."napari.manifest"]
    ├── README.md
    ├── LICENSE
-   ├── .env.example
+   ├── .env.example             ← only with --dotenv
    └── .pre-commit-config.yaml
 
 Development tools configured
@@ -253,6 +259,9 @@ Every generated project comes with:
   changelog generation (see :ref:`version-bumps` below)
 - **pre-commit** — Git hooks that run linting, formatting, and type
   checking before each commit
+- **loguru** — logging with a colourised console sink by default and an
+  opt-in rotating file sink (env-driven configuration via ``--dotenv``;
+  see :ref:`logging-system` below)
 
 .. _data-analysis:
 
@@ -443,43 +452,76 @@ When ``--github`` is used, two GitHub Actions workflows are created:
 - GitHub release creation with changelog
 - For workspaces, bumps the single synchronized version across all packages
 
+.. _logging-system:
+
 Logging system
 --------------
 
 Every generated project includes a ready-to-use logging module at
-``src/<package_name>/config.py``. It provides environment-variable-driven
-configuration with sensible defaults, console and rotating file handlers,
-and environment-specific overrides.
+``src/<package_name>/config.py``, built on `loguru
+<https://github.com/Delgan/loguru>`_. Importing the package configures
+loguru's sinks once (the package ``__init__`` does ``from . import config``),
+after which you use the global ``logger`` anywhere.
 
 Getting a logger
 ^^^^^^^^^^^^^^^^
 
-Import ``get_logger`` from your package's ``config`` module:
+There is no per-module factory — import loguru's global logger directly:
 
 .. code-block:: python
 
-   from my_package.config import get_logger
-
-   logger = get_logger(__name__)
+   from loguru import logger
 
    logger.debug("Detailed diagnostic info")
    logger.info("General operational messages")
    logger.warning("Something unexpected happened")
    logger.error("Something failed")
 
-The first call to ``get_logger`` configures the root logger based on
-environment variables. Subsequent calls return child loggers that inherit
-this configuration.
+The module path, function and line are captured automatically, and
+tracebacks are rendered with full diagnostics.
 
-Environment variables
-^^^^^^^^^^^^^^^^^^^^^
+Default configuration
+^^^^^^^^^^^^^^^^^^^^^^
 
-Control logging behaviour via the ``.env`` file or shell environment.
-Each generated project includes a ``.env.example`` with sensible
-defaults. Copy it to activate:
+Out of the box, ``config.py`` enables a single colourised console sink at
+``INFO``:
+
+.. code-block:: python
+
+   import sys
+   from loguru import logger
+
+   logger.remove()
+   logger.add(sys.stderr, level="INFO", colorize=True)
+
+A rotating file sink is included but commented out. Uncomment it to also
+write logs to disk — loguru handles rotation, retention and compression
+for you:
+
+.. code-block:: python
+
+   logger.add(
+       "logs/app.log",
+       level="DEBUG",
+       rotation="1 MB",
+       retention=5,
+       compression="zip",
+       backtrace=True,
+       diagnose=True,
+   )
+
+Environment-driven configuration (``--dotenv``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you scaffold with ``--dotenv``, the project instead gets a
+``config.py`` that reads its configuration from environment variables
+(optionally loaded from ``.env`` / ``.env.<ENV>`` via `python-dotenv
+<https://github.com/theskumar/python-dotenv>`_), plus a ``.env.example``
+to copy:
 
 .. code-block:: bash
 
+   uv-start my-project --dotenv
    cp .env.example .env
 
 .. warning::
@@ -487,54 +529,33 @@ defaults. Copy it to activate:
    The ``.env`` file is gitignored by default. Never commit it —
    it is for local configuration and secrets only.
 
-Available variables:
+Recognised variables (all optional):
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 15 55
+   :widths: 25 20 55
 
    * - Variable
      - Default
      - Description
    * - ``LOG_LEVEL``
      - ``INFO``
-     - Minimum level to capture (``DEBUG``, ``INFO``, ``WARNING``,
-       ``ERROR``, ``CRITICAL``)
-   * - ``ENABLE_CONSOLE_LOGGING``
-     - ``true``
-     - Print log messages to the terminal
-   * - ``ENABLE_FILE_LOGGING``
-     - ``true``
-     - Write log messages to a rotating file
-   * - ``LOG_FILE_PATH``
-     - ``logs/app.log``
-     - Path to the log file
-   * - ``LOG_MAX_BYTES``
-     - ``1048576``
-     - Max size per log file before rotation (1 MB)
-   * - ``LOG_BACKUP_COUNT``
-     - ``5``
-     - Number of rotated log files to keep
-   * - ``LOG_FORMAT``
-     - see below
-     - Python `logging format string
-       <https://docs.python.org/3/library/logging.html#logrecord-attributes>`_
+     - Minimum level for the console (and file) sink (``DEBUG``,
+       ``INFO``, ``WARNING``, ``ERROR``, ``CRITICAL``)
+   * - ``LOG_FILE``
+     - *(unset)*
+     - If set, also write a rotating log file to this path
    * - ``ENV``
      - ``development``
      - Active environment; loads ``.env.<ENV>`` overrides if present
 
-Default log format::
-
-   %(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s
-
 Environment-specific configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Create environment-specific ``.env`` files to override defaults:
+With ``--dotenv``, create environment-specific files to override defaults:
 
 - ``.env.example`` — template with defaults (checked into version control)
 - ``.env`` — your local copy of ``.env.example`` (gitignored, never commit)
-- ``.env.development`` — local development overrides (gitignored)
 - ``.env.production`` — production settings (gitignored)
 
 Example ``.env.production``:
@@ -542,8 +563,7 @@ Example ``.env.production``:
 .. code-block:: bash
 
    LOG_LEVEL=WARNING
-   ENABLE_CONSOLE_LOGGING=false
-   LOG_FILE_PATH=/var/log/myapp/app.log
+   LOG_FILE=/var/log/myapp/app.log
 
 Activate an environment:
 
@@ -551,8 +571,8 @@ Activate an environment:
 
    export ENV=production
 
-The configuration strategy is:
+The loading strategy is:
 
-1. Load hard-coded defaults
-2. Load the base ``.env`` file (if present)
-3. Load ``.env.<ENV>`` (if present), overriding previous values
+1. Load the base ``.env`` file (if present)
+2. Load ``.env.<ENV>`` (if present), overriding previous values
+3. Fall back to code-level defaults (console at ``INFO``) for anything unset

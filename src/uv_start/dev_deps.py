@@ -9,16 +9,33 @@ from uv_start.exceptions import ConfigError, DependencyError
 TEMPLATE_DIR = Path(__file__).resolve().parent / "template"
 
 
-def add_dev_dependencies(project_name: str, project_path: Path) -> None:
-    """Add dev dependencies to the project"""
+def add_dev_dependencies(
+    project_name: str, project_path: Path, *, dotenv: bool = False
+) -> None:
+    """Add runtime and dev dependencies to the project.
+
+    Args:
+        project_name: Name of the project (unused, kept for symmetry).
+        project_path: Path to the generated project.
+        dotenv: When True, also add ``python-dotenv`` for env-driven
+            logging configuration.
+    """
     try:
-        # Add python-dotenv as a regular dependency first
+        # loguru is the runtime logging dependency for every project.
         subprocess.run(
-            ["uv", "add", "python-dotenv"],
+            ["uv", "add", "loguru"],
             check=True,
             cwd=project_path,
             env=clean_env(),
         )
+        # python-dotenv is only needed for the opt-in .env handling.
+        if dotenv:
+            subprocess.run(
+                ["uv", "add", "python-dotenv"],
+                check=True,
+                cwd=project_path,
+                env=clean_env(),
+            )
         subprocess.run(
             [
                 "uv",
