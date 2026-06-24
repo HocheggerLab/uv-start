@@ -1,3 +1,9 @@
+## v0.7.0 (2026-06-24)
+
+### Feat
+
+- **config.py**: migrate to loguru for improved logging setup
+
 ## v0.6.0 (2026-05-14)
 
 ### Feat
