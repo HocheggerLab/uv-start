@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build-docs:
     name: "Build Docs"
