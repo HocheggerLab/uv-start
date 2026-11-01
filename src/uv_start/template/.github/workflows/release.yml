@@ -30,21 +30,25 @@ jobs:
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
 
       # commitizen comes from the locked dev dependencies, not a fresh pip
-      # install. The commit message is read in the shell, never interpolated
-      # with ${{ }}, so it cannot inject commands.
+      # install.
       - name: Install dependencies
         run: uv sync --locked --dev
 
+      # commitizen reads every commit since the last tag and decides the
+      # increment itself, so a trailing docs:/test: commit no longer hides a
+      # feat: or fix: that came before it. Exit 21 (NO_INCREMENT) and 3
+      # (NO_COMMITS_FOUND) mean "nothing to release"; anything else fails.
       - name: Attempt version bump (if applicable)
-        id: bump
         run: |
-          COMMIT_MSG="$(git log -1 --pretty=%B)"
-          if echo "$COMMIT_MSG" | grep -qE "^(fix|feat|refactor|perf)(\([^)]+\))?\!?: "; then
-            echo "Conventional commit detected – bumping version."
-            uv run cz bump --yes || echo "No version bump occurred."
-          else
-            echo "Non-bump commit type – skipping version bump."
-          fi
+          set +e
+          uv run cz bump --yes
+          status=$?
+          set -e
+          case $status in
+            0)    ;;
+            3|21) echo "Nothing to release." ;;
+            *)    exit $status ;;
+          esac
 
       - name: Push changes
         run: git push --follow-tags
