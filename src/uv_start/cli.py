@@ -22,7 +22,9 @@ _OriginalHelpFormatter = _click.HelpFormatter
 import rich_click as click  # noqa: E402
 
 PROJECT_TYPES = ["lib", "package", "app"]
-PYTHON_VERSIONS = ["3.14", "3.13", "3.12", "3.11", "3.10"]
+# Python minors that still receive security fixes (3.10 reached end of
+# life in October 2026).
+PYTHON_VERSIONS = ["3.14", "3.13", "3.12", "3.11"]
 
 
 def validate_project_name(name: str) -> str:
@@ -68,7 +70,7 @@ def _project_name_callback(
     "-p",
     "--python",
     type=click.Choice(PYTHON_VERSIONS),
-    default="3.13",
+    default="3.14",
     show_default=True,
     help="The Python version to use.",
 )
@@ -89,7 +91,12 @@ def _project_name_callback(
 @click.option(
     "--data",
     is_flag=True,
-    help="Create a data-analysis project (jupyter, pandas, matplotlib, seaborn).",
+    help="Create a flat data-analysis project for Jupyter notebooks (numpy, pandas, matplotlib, seaborn).",
+)
+@click.option(
+    "--lab",
+    is_flag=True,
+    help="With --data: add the Hochegger lab figure style, COLOR palette and CLAUDE.md.",
 )
 @click.option(
     "--napari",
@@ -109,6 +116,25 @@ def _project_name_callback(
     default=None,
     help="Configure author name and email for project templates, then exit.",
 )
+@click.option(
+    "--upgrade",
+    is_flag=True,
+    help="Safely upgrade the project in the current folder: update uv and "
+    "Python, lock releases past the cooldown, audit for vulnerabilities.",
+)
+@click.option(
+    "--cooldown",
+    type=click.IntRange(min=0),
+    default=None,
+    metavar="DAYS",
+    help="With --upgrade: minimum release age in days "
+    "(default: the project's setting, else 7).",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="With --upgrade: show what would change, then restore the files.",
+)
 def cli(
     project_name: str | None,
     project_type: str,
@@ -117,16 +143,20 @@ def cli(
     github: bool,
     private: bool,
     data: bool,
+    lab: bool,
     napari: bool,
     dotenv: bool,
     config: tuple[str, str] | None,
+    upgrade: bool,
+    cooldown: int | None,
+    dry_run: bool,
 ) -> None:
     """Initialize a new Python project with uv.
 
     Creates a uv-managed project with a src layout, dev tooling (ruff, ty,
     pytest, pre-commit, commitizen) and loguru logging. Pass PROJECT_NAME to
-    create a project, or use --config to set the author defaults used in
-    project templates.
+    create a project, use --config to set the author defaults used in
+    project templates, or --upgrade to safely upgrade an existing project.
     """
     # Author-config mode: store defaults and exit without creating a project.
     if config:
@@ -135,12 +165,23 @@ def cli(
         save_config(name=config[0], email=config[1])
         return
 
+    if (cooldown is not None or dry_run) and not upgrade:
+        raise click.UsageError(
+            "--cooldown and --dry-run can only be used with --upgrade."
+        )
+    if upgrade:
+        _run_upgrade(cooldown, dry_run)
+        return
+
     if project_name is None:
         raise click.UsageError(
-            "PROJECT_NAME is required (or use --config NAME EMAIL)."
+            "PROJECT_NAME is required (or use --config NAME EMAIL, "
+            "or --upgrade)."
         )
     if private and not github:
         raise click.UsageError("--private can only be used with --github.")
+    if lab and not data:
+        raise click.UsageError("--lab can only be used with --data.")
 
     # Imported lazily to avoid a circular import (``__main__`` imports this
     # module to expose the entry point).
@@ -154,6 +195,7 @@ def cli(
         github=github,
         private=private,
         data=data,
+        lab=lab,
         napari=napari,
         dotenv=dotenv,
         config=None,
@@ -161,11 +203,29 @@ def cli(
     initialize_uv_start(args)
 
 
+def _run_upgrade(cooldown: int | None, dry_run: bool) -> None:
+    """Run the safe upgrade in the current folder and exit with its code."""
+    import os
+    from pathlib import Path
+
+    from uv_start.exceptions import UpgradeError
+    from uv_start.upgrade import safe_upgrade
+
+    project_dir = Path(os.environ.get("UV_ORIGINAL_CWD", os.getcwd()))
+    try:
+        code = safe_upgrade(
+            project_dir, cooldown_days=cooldown, dry_run=dry_run
+        )
+    except UpgradeError as e:
+        raise click.ClickException(str(e)) from e
+    raise SystemExit(code)
+
+
 # Plain-click alias for great-docs CLI introspection.
 # rich_click's RichHelpFormatter requires a `config` kwarg that great-docs
 # doesn't pass, causing AttributeError. This subclass uses the unpatched
 # formatter so great-docs can document the CLI without triggering that error.
-class _DocsCommand(_PlainCommand):  # type: ignore[misc, valid-type]
+class _DocsCommand(_PlainCommand):  # type: ignore[valid-type,misc]
     formatter_class = _OriginalHelpFormatter
 
 

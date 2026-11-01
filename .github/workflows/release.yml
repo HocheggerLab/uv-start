@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -27,27 +27,22 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10
 
+      # commitizen comes from the locked dev dependencies, not a fresh pip
+      # install. The commit message is read in the shell, never interpolated
+      # with ${{ }}, so it cannot inject commands.
       - name: Install dependencies
-        run: pip install commitizen
-
-      - name: Get commit message
-        run: |
-          echo "COMMIT_MSG<<EOF" >> $GITHUB_ENV
-          git log -1 --pretty=%B >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+        run: uv sync --locked --dev
 
       - name: Attempt version bump (if applicable)
         id: bump
         run: |
-          COMMIT_MSG="${{ env.COMMIT_MSG }}"
+          COMMIT_MSG="$(git log -1 --pretty=%B)"
           if echo "$COMMIT_MSG" | grep -qE "^(fix|feat|refactor|perf)(\([^)]+\))?\!?: "; then
             echo "Conventional commit detected – bumping version."
-            cz bump --yes && echo "bumped=true" >> $GITHUB_OUTPUT || echo "bumped=false" >> $GITHUB_OUTPUT
+            uv run cz bump --yes && echo "bumped=true" >> $GITHUB_OUTPUT || echo "bumped=false" >> $GITHUB_OUTPUT
           else
             echo "Non-bump commit type – skipping version bump."
             echo "bumped=false" >> $GITHUB_OUTPUT
@@ -56,17 +51,12 @@ jobs:
       - name: Push changes
         run: git push --follow-tags
 
-      - name: Install uv
-        if: steps.bump.outputs.bumped == 'true'
-        uses: astral-sh/setup-uv@v3
-
       - name: Build package
         if: steps.bump.outputs.bumped == 'true'
         run: uv build
 
       - name: Publish to PyPI
         if: steps.bump.outputs.bumped == 'true'
-        run: uvx twine upload dist/*
+        run: uv publish
         env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}

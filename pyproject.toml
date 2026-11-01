@@ -14,6 +14,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Code Generators",
 ]
@@ -21,6 +22,7 @@ requires-python = ">=3.13"
 dependencies = [
     "rich>=13.9.4",
     "rich-click>=1.9.8",
+    "tomlkit>=0.13.3",
 ]
 
 [project.urls]
@@ -49,14 +51,12 @@ exclude = [".claude"]
 dev = [
     "commitizen>=4.0.0",
     "great-docs>=0.14.0",
-    "pandas-stubs>=2.2.3.250308",
     "pre-commit>=4.0.1",
     "pytest>=8.3.3",
     "pytest-mock>=3.14.0",
     "ruff>=0.8.0",
     "ty>=0.0.18",
     "typing-extensions>=4.13.2",
-    "uv-start",
 ]
 
 [tool.ruff]
@@ -110,27 +110,21 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.7.1"
 tag_format = "v$version"
 version_files = [
     "src/uv_start/__init__.py:__version__",
-    "pyproject.toml:version",
     "README.md:version-[0-9]+\\.[0-9]+\\.[0-9]+"
 ]
-version_provider = "commitizen"
+# The uv provider bumps [project].version and uv.lock together, so
+# `uv sync --locked` keeps passing after a release.
+version_provider = "uv"
 major_version_zero = true
 bump_message = "bump: version $current_version → $new_version"
 update_changelog_on_bump = true
 annotated_tag = true
-[tool.uv.sources]
-uv-start = { workspace = true }
-
-[tool.uv.workspace]
-members = [
-    "test-gh",
-    "segmentation-plugin",
-]
-
-
 [tool.ty.src]
 exclude = ["src/uv_start/template/"]
+
+[tool.uv]
+# Only install releases that have been public for a week (see upgrade.py).
+exclude-newer = "7 days"

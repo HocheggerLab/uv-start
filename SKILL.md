@@ -41,6 +41,7 @@ uv-start --config "Your Name" "you@example.com"   # run once to save author info
 | napari plugin | `uv-start my-plugin --napari` |
 | Any of the above + GitHub repo | add `-g` (and `--private` for private) |
 | Env-driven log level / log file | add `--dotenv` |
+| Upgrade deps safely (cooldown + audit) | `uv-start --upgrade` in the project |
 
 ## Full command reference
 
@@ -51,14 +52,17 @@ uv-start PROJECT_NAME [options]
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-t, --type [lib\|package\|app]` | `lib` | Project type |
-| `-p, --python [3.14…3.10]` | `3.13` | Python version |
+| `-p, --python [3.14…3.11]` | `3.14` | Python version (3.10 is end-of-life) |
 | `-w, --workspace` | off | Create a uv workspace (monorepo) |
 | `-g, --github` | off | Init git repo + create GitHub remote |
 | `--private` | off | Make GitHub repo private (requires `-g`) |
-| `--data` | off | Data-analysis project (Jupyter, pandas, matplotlib, seaborn) |
+| `--data` | off | Data-analysis project for notebooks (ipykernel, numpy, pandas, matplotlib, seaborn) |
+| `--lab` | off | With `--data`: lab matplotlib style, `COLOR` palette, CLAUDE.md |
 | `--napari` | off | napari plugin project |
 | `--dotenv` | off | Env-driven logging via python-dotenv |
 | `--config NAME EMAIL` | — | Save author defaults, then exit |
+| `--upgrade` | — | In a project folder: update uv + Python, upgrade deps past the 7-day cooldown, `uv audit`, sync |
+| `--cooldown DAYS` / `--dry-run` | 7 / off | Refine `--upgrade` |
 
 ## Generated structure
 
@@ -104,14 +108,22 @@ from . import config  # installs colourised console sink at INFO
 
 # in any module:
 from loguru import logger
+
 logger.info("message")
 ```
 
 To add a rotating file sink, uncomment in `config.py`:
 
 ```python
-logger.add("logs/app.log", level="DEBUG", rotation="1 MB",
-           retention=5, compression="zip", backtrace=True, diagnose=True)
+logger.add(
+    "logs/app.log",
+    level="DEBUG",
+    rotation="1 MB",
+    retention=5,
+    compression="zip",
+    backtrace=True,
+    diagnose=True,
+)
 ```
 
 ### Workspace project
@@ -124,8 +136,9 @@ Library packages only emit — never configure sinks:
 from common_utils.logging_setup import setup_logging_once
 from loguru import logger
 
+
 def main() -> None:
-    setup_logging_once()          # idempotent — safe to call more than once
+    setup_logging_once()  # idempotent — safe to call more than once
     logger.info("Hello!")
 ```
 

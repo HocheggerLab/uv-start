@@ -19,6 +19,13 @@ def temp_cwd(tmp_path):
     return tmp_path
 
 
+@pytest.fixture(autouse=True)
+def mock_cooldown():
+    """Skip writing the cooldown; the mocked uv init creates no pyproject."""
+    with patch("uv_start.router.ensure_cooldown") as mock_ensure:
+        yield mock_ensure
+
+
 @pytest.fixture
 def mock_subprocess():
     """Mock subprocess calls"""
@@ -137,3 +144,58 @@ def test_subprocess_error(mock_subprocess, base_args, temp_cwd, mock_fs):
     dispatcher = CommandDispatcher(args, temp_cwd)
     with pytest.raises(ProjectCreationError):
         dispatcher.dispatch()
+
+
+def test_data_project(mock_subprocess, base_args, tmp_path):
+    """A data project is a flat, non-package uv project for notebooks."""
+    base_args.type = "lib"
+    base_args.napari = False
+    base_args.data = True
+    (tmp_path / "test-project").mkdir()
+    (tmp_path / "test-project" / "main.py").write_text("print('hi')\n")
+
+    dispatcher = CommandDispatcher(base_args, tmp_path)
+    dispatcher.dispatch()
+
+    calls = mock_subprocess.call_args_list
+    assert calls[0].args[0] == [
+        "uv",
+        "init",
+        "test-project",
+        "--app",
+        "--no-package",
+        "--python",
+        "3.12",
+    ]
+    assert calls[1].args[0] == [
+        "uv",
+        "add",
+        "ipykernel",
+        "numpy",
+        "pandas",
+        "matplotlib",
+        "seaborn",
+    ]
+    project = tmp_path / "test-project"
+    assert not (project / "main.py").exists()
+    assert (project / "data" / ".gitkeep").exists()
+    assert (project / "results" / ".gitkeep").exists()
+
+
+def test_cooldown_written_before_dependencies(
+    mock_subprocess, mock_cooldown, base_args, tmp_path
+):
+    """The cooldown lands in pyproject.toml before any `uv add` runs."""
+    base_args.data = True
+    base_args.lab = False
+    (tmp_path / "test-project").mkdir()
+    calls: list[str] = []
+    mock_cooldown.side_effect = lambda *a, **k: calls.append("cooldown")
+    mock_subprocess.side_effect = lambda cmd, **k: (
+        calls.append(cmd[1]) or Mock(returncode=0)
+    )
+    CommandDispatcher(args=base_args, original_cwd=tmp_path).dispatch()
+    assert calls[:3] == ["init", "cooldown", "add"]
+    mock_cooldown.assert_called_once_with(
+        tmp_path / "test-project" / "pyproject.toml", None
+    )

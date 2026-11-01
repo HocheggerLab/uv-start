@@ -143,8 +143,7 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# VS Code
-.vscode/
+# VS Code settings and recommended extensions in .vscode/ are shared on purpose.
 
 # PyCharm
 # .idea/
@@ -185,7 +184,6 @@ yarn-error.log*
 
 # Editor directories and files
 .idea/
-.vscode/
 *.suo
 *.ntvs*
 *.njsproj
@@ -230,7 +228,6 @@ Cargo.lock
 
 # IDE directories
 /.idea/
-/.vscode/
 
 # =========================
 # General

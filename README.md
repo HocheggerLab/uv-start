@@ -8,7 +8,7 @@ This package integrates uv commands with a template for development configs, com
 
 ## Status
 Version: ![version](https://img.shields.io/badge/version-0.7.1-blue)
-[![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
@@ -17,7 +17,7 @@ Version: ![version](https://img.shields.io/badge/version-0.7.1-blue)
 
 This project is in active development.
 Features and APIs may change. Please report issues on GitHub.
-Tests currently run only on Mac and Linux with Python 3.13.
+Tests currently run on Mac and Linux with Python 3.13 and 3.14.
 
 ---
 
@@ -32,7 +32,7 @@ Helfrid Hochegger
 ---
 
 ## Dependencies
-- Requires Python 3.13 (not tested on other versions)
+- Requires Python 3.13 or newer
 - UV package manager installed (https://github.com/astral-sh/uv)
 - GitHub CLI (`gh`) authenticated via `gh auth login`, if using GitHub features
 
@@ -63,7 +63,8 @@ This project is licensed under the MIT License
   - loguru logging (opt-in `.env` configuration via `--dotenv`)
 - GitHub repository initialization with CI/CD workflows
 - Semantic versioning support
-- Python 3.10–3.14 support for project initialisation
+- Python 3.11–3.14 support for project initialisation (3.10 is end-of-life)
+- Safe upgrades: 7-day release cooldown, vulnerability audit and `uv-start --upgrade`
 
 ---
 
@@ -141,14 +142,16 @@ uv-start project-name [options]
 
 Options:
 - `-t, --type [lib|package]`: The type of project to create (default: lib, alternative: package)
-- `-p, --python [3.14|3.13|3.12|3.11|3.10]`: Python version to use (default: 3.13)
+- `-p, --python [3.14|3.13|3.12|3.11]`: Python version to use (default: 3.14)
 - `-w, --workspace`: Create a workspace (monorepo setup)
 - `-g, --github`: Create and initialize a GitHub repository
 - `--private`: Create a private GitHub repository (requires --github)
-- `--data`: Create a data analysis project (jupyter, pandas, matplotlib, seaborn)
+- `--data`: Create a flat data-analysis project for Jupyter notebooks in VS Code (ipykernel, numpy, pandas, matplotlib, seaborn)
+- `--lab`: With `--data`, add the Hochegger lab matplotlib style, `COLOR` palette and a figure-style `CLAUDE.md`
 - `--napari`: Create a napari plugin project (hello-world widget scaffold)
 - `--dotenv`: Add `.env` handling (python-dotenv) for env-driven log configuration
 - `--config NAME EMAIL`: Save author name and email for project templates
+- `--upgrade`: Safely upgrade the project in the current folder (see [Safe upgrades](#safe-upgrades)); `--cooldown DAYS` and `--dry-run` refine it
 
 ### Examples
 
@@ -174,6 +177,32 @@ This will generate a uv workspace (see: https://docs.astral.sh/uv/concepts/proje
 The user will be prompted to add a common-utils library and an additional project.
 
 ---
+
+## Safe upgrades
+
+Every generated project holds back releases that are less than **7 days**
+old (`[tool.uv] exclude-newer = "7 days"` in `pyproject.toml`). Malicious
+uploads to PyPI (such as the trojanised `litellm` 1.107.0 of October 2026,
+live for under two hours) are usually caught and removed within hours, so a
+week-old release has been vetted by everyone who installed it first.
+
+To upgrade an existing project, run this from its folder:
+
+```bash
+uv-start --upgrade              # update uv + Python, upgrade, audit, sync
+uv-start --upgrade --dry-run    # show what would change, touch nothing
+uv-start --upgrade --cooldown 14
+```
+
+`--upgrade` updates uv itself and the project's Python patch release, warns if
+the project pins a Python that no longer gets security fixes (3.10 or older),
+re-locks every dependency to the newest release outside the cooldown, and runs
+`uv audit` against the OSV vulnerability database. A known vulnerability whose
+fix is newer than the cooldown is the one exception: that package alone gets a
+dated `exclude-newer-package` entry so the fix goes in now, and the entry is
+removed again once the cooldown catches up. It exits with status 1 if any
+vulnerability remains (for example when no fix exists yet). Generated CI also
+runs `uv audit` on every push.
 
 ## Project Structure
 
@@ -264,7 +293,7 @@ additional --private flag for optional private repos
 ### GitHub Workflows
 
 #### CI Pipeline
-- Runs on Python 3.13
+- Runs on Python 3.13 and 3.14
 - Performs:
   - Code linting with Ruff
   - Type checking with Ty

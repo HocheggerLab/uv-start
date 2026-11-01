@@ -15,14 +15,18 @@ The project name must not contain spaces or underscores.
 | Flag | Description |
 |------|-------------|
 | `-t, --type [lib\|package\|app]` | Project type to create. **lib** (default) creates a simple library with a `src/` layout. **package** creates an installable package with an entry-point script. **app** creates a standalone application. |
-| `-p, --python [3.14\|3.13\|3.12\|3.11\|3.10]` | Python version for the new project (default: **3.13**). |
+| `-p, --python [3.14\|3.13\|3.12\|3.11]` | Python version for the new project (default: **3.14**). 3.10 is end-of-life and no longer offered. |
 | `-w, --workspace` | Create a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/) (monorepo). A shared `common-utils` library is always created to host shared logging setup; you will be prompted to add additional sub-projects. |
 | `-g, --github` | Initialise a Git repository **and** create a GitHub remote. Sets up CI/CD workflows automatically. |
 | `--private` | Make the GitHub repository private. Requires `--github`. |
-| `--data` | Create a data analysis project. Installs Jupyter, pandas, matplotlib, and seaborn. No `src/` layout — just a flat project with a starter notebook, lab matplotlib style, and colour palette. |
+| `--data` | Create a data analysis project for Jupyter notebooks. Installs ipykernel, numpy, pandas, matplotlib and seaborn. No `src/` layout — just a flat project with a starter notebook, `data/` and `results/` folders, and VS Code settings. |
+| `--lab` | With `--data` only: add the Hochegger lab matplotlib style (`hhlab_style01.mplstyle`), the `COLOR` palette (`colors.py`) and a `CLAUDE.md` that enforces them; the starter notebook then uses both. |
 | `--napari` | Create a [napari](https://napari.org/) plugin project. Installs `napari[all]` and `magicgui`, scaffolds a hello-world dock widget, a `napari.yaml` manifest, and the `[project.entry-points."napari.manifest"]` block in `pyproject.toml`. Uses the standard `src/` layout and full dev-tool configuration. |
 | `--dotenv` | Add `.env` handling for environment-driven logging. Installs `python-dotenv`, ships a `.env.example`, and uses the env-var-aware logging config (`LOG_LEVEL`/`LOG_FILE`/`ENV`). Omit it for the default loguru config (console only, no `.env`). |
 | `--config NAME EMAIL` | Save author name and email for project templates. Stored in `~/.config/uv-start/config.toml`. |
+| `--upgrade` | Safely upgrade the project in the current folder; see [Safe upgrades](#safe-upgrades). |
+| `--cooldown DAYS` | With `--upgrade`: minimum release age (default: the project's setting, else 7). |
+| `--dry-run` | With `--upgrade`: show what would change and restore the files. |
 
 ## Examples
 
@@ -50,7 +54,7 @@ be run from the command line.
 uv-start my-project -p 3.12
 ```
 
-Target Python 3.12 instead of the default 3.13.
+Target Python 3.12 instead of the default 3.14.
 
 ### Create a project with a GitHub repo
 
@@ -91,10 +95,20 @@ uv-start my-analysis --data
 
 Creates a flat project (no `src/` layout) pre-configured for interactive data analysis:
 
-- **Jupyter**, **pandas**, **matplotlib**, and **seaborn** installed in the `.venv`
-- Lab matplotlib style (`hhlab_style01.mplstyle`) at the project root
+- **ipykernel**, **numpy**, **pandas**, **matplotlib** and **seaborn** installed in the `.venv` — `ipykernel` is all VS Code needs to run notebooks on the project environment (for JupyterLab: `uv run --with jupyter jupyter lab`)
+- `sample.ipynb` — a starter notebook that runs out of the box: it prints which Python is running (to confirm the `.venv` kernel) and draws an example plot
+- `data/` for raw inputs and `results/` for outputs
+- `.vscode/` settings plus recommended extensions (Python, Jupyter, Ruff) — committed with the project, so collaborators get them too
+- a README explaining the environment and how to select the kernel in VS Code
+
+Add `--lab` for the Hochegger lab figure conventions:
+
+```bash
+uv-start my-analysis --data --lab
+```
+
+- `hhlab_style01.mplstyle` — the lab matplotlib style, applied in `sample.ipynb`
 - `colors.py` — a `COLOR` enum with the lab's standard palette
-- `sample.ipynb` — starter notebook that applies the style and imports `COLOR`
 - `CLAUDE.md` — instructions for AI-assisted work that enforce consistent figure styling
 
 Combine with `--github` to create a GitHub repository at the same time:
@@ -207,8 +221,36 @@ Every generated project comes with:
   generation (see [Conventional commits and version bumps](#conventional-commits-and-version-bumps) below)
 - **pre-commit** — Git hooks that run linting, formatting, and type checking before
   each commit
+- **7-day cooldown** — `[tool.uv] exclude-newer = "7 days"`, so brand-new
+  (unvetted) releases are never installed; CI runs `uv audit`
 - **loguru** — logging with a colourised console sink by default and an opt-in rotating
   file sink (env-driven configuration via `--dotenv`; see [Logging system](#logging-system) below)
+
+## Safe upgrades
+
+Every generated project holds back releases that are less than **7 days**
+old (`[tool.uv] exclude-newer = "7 days"` in `pyproject.toml`). Malicious
+uploads to PyPI (such as the trojanised `litellm` 1.107.0 of October 2026,
+live for under two hours) are usually caught and removed within hours, so a
+week-old release has been vetted by everyone who installed it first.
+
+To upgrade an existing project, run this from its folder:
+
+```bash
+uv-start --upgrade              # update uv + Python, upgrade, audit, sync
+uv-start --upgrade --dry-run    # show what would change, touch nothing
+uv-start --upgrade --cooldown 14
+```
+
+`--upgrade` updates uv itself and the project's Python patch release, warns if
+the project pins a Python that no longer gets security fixes (3.10 or older),
+re-locks every dependency to the newest release outside the cooldown, and runs
+`uv audit` against the OSV vulnerability database. A known vulnerability whose
+fix is newer than the cooldown is the one exception: that package alone gets a
+dated `exclude-newer-package` entry so the fix goes in now, and the entry is
+removed again once the cooldown catches up. It exits with status 1 if any
+vulnerability remains (for example when no fix exists yet). Generated CI also
+runs `uv audit` on every push.
 
 ## Data analysis project details
 

@@ -4,7 +4,7 @@ title: "Installation"
 
 ## Prerequisites
 
-- **Python 3.13+** (not tested on earlier versions)
+- **Python 3.13+** (tested on 3.13 and 3.14)
 - **uv** — the fast Python package manager ([install uv](https://docs.astral.sh/uv/getting-started/installation/))
 - **gh** — the GitHub CLI, only needed if you use the `--github` flag ([install gh](https://cli.github.com/))
 

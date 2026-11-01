@@ -9,6 +9,11 @@ from rich.prompt import Prompt
 from uv_start.config import clean_env
 from uv_start.exceptions import ProjectCreationError
 from uv_start.parse_docs import COMMON_UTILS_MODULE, copy_logging_setup
+from uv_start.upgrade import ensure_cooldown
+
+# Runtime packages for --data projects. ipykernel runs notebooks on the
+# project's .venv; the full jupyter stack is not needed for VS Code.
+DATA_PACKAGES = ["ipykernel", "numpy", "pandas", "matplotlib", "seaborn"]
 
 
 @dataclass
@@ -39,6 +44,14 @@ class CommandDispatcher:
             return
         flags = self._get_project_flags()
         self._create_project(flags, workspace=self.args.workspace)
+
+    def _add_cooldown(self) -> None:
+        """Hold back releases younger than the cooldown (default 7 days).
+
+        Written before any ``uv add`` so the first install already skips
+        brand-new (unvetted) releases; see :mod:`uv_start.upgrade`.
+        """
+        ensure_cooldown(self.project_path / "pyproject.toml", None)
 
     def _get_project_flags(self) -> list[str]:
         """Convert project type to uv flags"""
@@ -74,6 +87,7 @@ class CommandDispatcher:
                 cwd=self.original_cwd,
                 env=clean_env(),
             )
+            self._add_cooldown()
             # Create tests directory
             tests_dir = self.project_path / "tests"
             tests_dir.mkdir(exist_ok=True)
@@ -184,6 +198,7 @@ class CommandDispatcher:
                 cwd=self.original_cwd,
                 env=clean_env(),
             )
+            self._add_cooldown()
             subprocess.run(
                 [
                     "uv",
@@ -208,7 +223,14 @@ class CommandDispatcher:
             ) from e
 
     def _create_data_project(self) -> None:
-        """Create a plain data analysis project with scientific Python stack."""
+        """Create a flat data-analysis project for Jupyter notebooks.
+
+        The project is not a package (``--no-package``): there is no
+        ``src/`` layout or entry point, just an environment for notebooks.
+        ``ipykernel`` is what lets VS Code (or any Jupyter front end) run
+        notebooks on the project's ``.venv``. ``data/`` holds raw inputs,
+        ``results/`` what the notebooks write.
+        """
         rprint(
             f"[green]Creating data analysis project at {self.original_cwd}...[/green]"
         )
@@ -218,6 +240,8 @@ class CommandDispatcher:
                     "uv",
                     "init",
                     self.args.project_name,
+                    "--app",
+                    "--no-package",
                     "--python",
                     self.args.python,
                 ],
@@ -225,19 +249,18 @@ class CommandDispatcher:
                 cwd=self.original_cwd,
                 env=clean_env(),
             )
+            self._add_cooldown()
             subprocess.run(
-                [
-                    "uv",
-                    "add",
-                    "jupyter",
-                    "pandas",
-                    "matplotlib",
-                    "seaborn",
-                ],
+                ["uv", "add", *DATA_PACKAGES],
                 check=True,
                 cwd=self.project_path,
                 env=clean_env(),
             )
+            # uv's hello-world main.py has no place in a notebook project.
+            (self.project_path / "main.py").unlink(missing_ok=True)
+            for folder in ["data", "results"]:
+                (self.project_path / folder).mkdir(exist_ok=True)
+                (self.project_path / folder / ".gitkeep").touch()
             rprint(
                 f"[green]✓[/green] Successfully created data project '[bold]{self.args.project_name}[/bold]'"
             )

@@ -125,6 +125,12 @@ def parse_dev_configs(project_path: Path) -> None:
             if packages:
                 _add_workspace_version_files(project_path, packages)
 
+        # Appending blocks leaves blank lines at the end, which the
+        # end-of-file-fixer hook would rewrite on the first commit.
+        for pyproject_toml in pyproject_toml_list:
+            text = pyproject_toml.read_text()
+            pyproject_toml.write_text(text.rstrip() + "\n")
+
         rprint("[green]Added config files to pyproject[/green]")
 
     except FileNotFoundError as e:

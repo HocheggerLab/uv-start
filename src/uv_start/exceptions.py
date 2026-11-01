@@ -23,3 +23,7 @@ class TemplateError(UvInitError):
 
 class GitSetupError(UvInitError):
     """Failed during git/GitHub setup."""
+
+
+class UpgradeError(UvInitError):
+    """Failed during a safe dependency upgrade."""

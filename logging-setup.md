@@ -46,6 +46,7 @@ There is no `get_logger()` factory — import the global logger directly:
 ```python
 from loguru import logger
 
+
 def some_function():
     logger.debug("Starting function execution")
     try:
@@ -70,9 +71,9 @@ captures `DEBUG`. File rotation, retention and compression are built in:
 logger.add(
     "logs/app.log",
     level="DEBUG",
-    rotation="1 MB",     # rotate when the file reaches 1 MB
-    retention=5,         # keep 5 rotated files
-    compression="zip",   # compress rotated files
+    rotation="1 MB",  # rotate when the file reaches 1 MB
+    retention=5,  # keep 5 rotated files
+    compression="zip",  # compress rotated files
 )
 ```
 

@@ -33,7 +33,7 @@ def test_cli_defaults(mock_init):
     args = mock_init.call_args.args[0]
     assert args.project_name == "my-project"
     assert args.type == "lib"  # default type
-    assert args.python == "3.13"
+    assert args.python == "3.14"
     assert args.workspace is False
 
 
@@ -113,3 +113,50 @@ def test_cli_private_requires_github(mock_init):
     result = CliRunner().invoke(cli, ["my-project", "--private"])
     assert result.exit_code != 0
     mock_init.assert_not_called()
+
+
+@patch("uv_start.__main__.initialize_uv_start")
+def test_cli_lab_flag(mock_init):
+    """--lab is passed through for data projects, and off by default."""
+    result = CliRunner().invoke(cli, ["my-analysis", "--data", "--lab"])
+    assert result.exit_code == 0, result.output
+    assert mock_init.call_args.args[0].lab is True
+    result = CliRunner().invoke(cli, ["my-analysis", "--data"])
+    assert mock_init.call_args.args[0].lab is False
+
+
+@patch("uv_start.__main__.initialize_uv_start")
+def test_cli_lab_requires_data(mock_init):
+    """--lab without --data is a usage error."""
+    result = CliRunner().invoke(cli, ["my-project", "--lab"])
+    assert result.exit_code != 0
+    assert "--lab can only be used with --data" in result.output
+    mock_init.assert_not_called()
+
+
+@patch("uv_start.upgrade.safe_upgrade", return_value=0)
+def test_cli_upgrade(mock_upgrade, tmp_path, monkeypatch):
+    monkeypatch.setenv("UV_ORIGINAL_CWD", str(tmp_path))
+    result = CliRunner().invoke(cli, ["--upgrade", "--cooldown", "14"])
+    assert result.exit_code == 0
+    mock_upgrade.assert_called_once_with(
+        tmp_path, cooldown_days=14, dry_run=False
+    )
+
+
+@patch("uv_start.upgrade.safe_upgrade", return_value=1)
+def test_cli_upgrade_exit_code_on_vulnerabilities(mock_upgrade):
+    result = CliRunner().invoke(cli, ["--upgrade", "--dry-run"])
+    assert result.exit_code == 1
+    assert mock_upgrade.call_args.kwargs["dry_run"] is True
+
+
+def test_cli_cooldown_requires_upgrade():
+    result = CliRunner().invoke(cli, ["proj", "--cooldown", "3"])
+    assert result.exit_code != 0
+    assert "--upgrade" in result.output
+
+
+def test_cli_python_310_rejected():
+    result = CliRunner().invoke(cli, ["proj", "-p", "3.10"])
+    assert result.exit_code != 0

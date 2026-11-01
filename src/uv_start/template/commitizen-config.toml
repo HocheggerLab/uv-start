@@ -5,14 +5,14 @@
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.1.0"
 tag_format = "v$version"
 version_files = [
     "src/{module_name}/__init__.py:__version__",
-    "pyproject.toml:version",
     "README.md:version-[0-9]+\\.[0-9]+\\.[0-9]+"
 ]
-version_provider = "commitizen"
+# The uv provider bumps [project].version and uv.lock together, so
+# `uv sync --locked` keeps passing after a release.
+version_provider = "uv"
 major_version_zero = true
 bump_message = "bump: version $current_version → $new_version"
 update_changelog_on_bump = true

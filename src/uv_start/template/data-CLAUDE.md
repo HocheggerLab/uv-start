@@ -8,7 +8,8 @@ This project is a Python data analysis environment for cell biology imaging.
 
 ```python
 import matplotlib.pyplot as plt
-plt.style.use('hhlab_style01.mplstyle')
+
+plt.style.use("hhlab_style01.mplstyle")
 ```
 
 **Always** use the `COLOR` enum from `colors.py` for plot colors:
@@ -53,10 +54,12 @@ Never use raw hex strings or default matplotlib colors in figure code. If a new 
 ├── hhlab_style01.mplstyle   # matplotlib style — never edit
 ├── colors.py                 # COLOR enum — extend here for new colors
 ├── sample.ipynb              # starter notebook
-└── data/                     # raw data (create as needed, never commit large files)
+├── data/                     # raw data — read only, never commit large files
+└── results/                  # figures and tables written by notebooks
 ```
 
 ## Environment
 
 - `uv add <package>` to add dependencies — never `pip install`
-- `jupyter lab` or `jupyter notebook` to launch notebooks
+- Notebooks run in VS Code on the project's `.venv` kernel (`ipykernel` is installed)
+- For JupyterLab instead: `uv run --with jupyter jupyter lab`

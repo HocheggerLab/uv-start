@@ -44,10 +44,7 @@ def parse_docs(args: Namespace, project_dir: Path) -> None:
     src_dir.mkdir(parents=True, exist_ok=True)
     if not getattr(args, "workspace", False):
         _copy_config(args, src_dir)
-    vs_code_dir = project_dir / ".vscode"
-    vs_code_dir.mkdir(parents=True, exist_ok=True)
-    _copy_template("settings.json", vs_code_dir)
-    _copy_template("launch.json", vs_code_dir)
+    _copy_vscode(project_dir)
     if args.github:
         _add_github_workflows(project_dir)
         _update_content(project_dir, args, ".github/workflows/ci.yml")
@@ -59,38 +56,58 @@ def parse_docs(args: Namespace, project_dir: Path) -> None:
 def parse_docs_data(args: Namespace, project_dir: Path) -> None:
     """Set up template files for a data analysis project.
 
-    Copies .gitignore, .env.example, the hhlab matplotlib style, and a
-    starter sample.ipynb into the project root. No src/ structure is created.
+    Copies .gitignore, a data-project README and a starter
+    ``sample.ipynb`` into the project root, plus VS Code settings and
+    recommended extensions. With ``--lab`` the notebook uses the hhlab
+    matplotlib style and COLOR palette, which are copied alongside a
+    CLAUDE.md. No ``src/`` structure is created.
     """
-    for template in [".gitignore", "README.md"]:
-        _copy_template(template, project_dir)
+    _copy_template(".gitignore", project_dir)
 
     if getattr(args, "dotenv", False):
         _copy_template(".env.example", project_dir)
 
-    _copy_template("hhlab_style01.mplstyle", project_dir)
-    _copy_template("colors.py", project_dir)
-    _copy_template("sample.ipynb", project_dir)
-
-    # CLAUDE.md is stored as data-CLAUDE.md in the template dir to avoid
-    # conflicting with this project's own CLAUDE.md during development.
-    src = TEMPLATE_DIR / "data-CLAUDE.md"
-    dest = project_dir / "CLAUDE.md"
-    shutil.copy(src, dest)
-    rprint("[green]CLAUDE.md copied to project root[/green]")
-
-    _update_content(project_dir, args, "README.md")
-    _update_content(project_dir, args, "sample.ipynb")
-    _update_content(project_dir, args, "CLAUDE.md")
-    vs_code_dir = project_dir / ".vscode"
-    vs_code_dir.mkdir(parents=True, exist_ok=True)
-    _copy_template("settings.json", vs_code_dir)
-    _copy_template("launch.json", vs_code_dir)
+    # Template files stored under other names: data-README.md is the
+    # notebook-project README, lab-sample.ipynb the styled notebook, and
+    # data-CLAUDE.md avoids clashing with this repo's own CLAUDE.md.
+    copies = [("data-README.md", "README.md")]
+    if getattr(args, "lab", False):
+        # --lab: the Hochegger lab figure style, palette and AI guidance.
+        _copy_template("hhlab_style01.mplstyle", project_dir)
+        _copy_template("colors.py", project_dir)
+        copies += [
+            ("lab-sample.ipynb", "sample.ipynb"),
+            ("data-CLAUDE.md", "CLAUDE.md"),
+        ]
+    else:
+        copies.append(("sample.ipynb", "sample.ipynb"))
+    for source, dest in copies:
+        shutil.copy(TEMPLATE_DIR / source, project_dir / dest)
+        rprint(f"[green]{dest} copied to project root[/green]")
+        _update_content(project_dir, args, dest)
+    _copy_vscode(project_dir, launch=False)
     if args.github:
         _add_github_workflows(project_dir)
         _update_content(project_dir, args, ".github/workflows/ci.yml")
         _update_content(project_dir, args, ".github/workflows/release.yml")
     rprint("[green]Data project template files copied successfully.[/green]")
+
+
+def _copy_vscode(project_dir: Path, *, launch: bool = True) -> None:
+    """Copy VS Code settings and recommended extensions into ``.vscode/``.
+
+    Args:
+        project_dir: Root of the generated project.
+        launch: Also copy ``launch.json`` (debug configuration). Not
+            needed for notebook-only data projects.
+    """
+    vs_code_dir = project_dir / ".vscode"
+    vs_code_dir.mkdir(parents=True, exist_ok=True)
+    files = ["settings.json", "extensions.json"]
+    if launch:
+        files.append("launch.json")
+    for name in files:
+        _copy_template(name, vs_code_dir)
 
 
 def parse_docs_napari(args: Namespace, project_dir: Path) -> None:
@@ -197,8 +214,6 @@ def _parse_replacement(args: Namespace, content_path: Path) -> dict[str, str]:
     AUTHOR_NAME = user_config.author_name
     AUTHOR_EMAIL = user_config.author_email
 
-    target_version = args.python
-
     parent_dir_name = content_path.parent.name
     module_name = parent_dir_name.replace("-", "_")
     return {
@@ -210,8 +225,6 @@ def _parse_replacement(args: Namespace, content_path: Path) -> dict[str, str]:
         "{package_name}": parent_dir_name,
         "{module_name}": module_name,
         "src/{module_name}/__init__.py": f"src/{module_name}/__init__.py",
-        'python-version: ["3.12"]': f'python-version: ["{target_version}"]',
-        "python-version: '3.12'": f"python-version: '{target_version}'",
     }
 
 

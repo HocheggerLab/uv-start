@@ -1,0 +1,8 @@
+{
+  // VS Code offers to install these when the project is opened.
+  "recommendations": [
+    "ms-python.python",
+    "ms-toolsai.jupyter",
+    "charliermarsh.ruff"
+  ]
+}

@@ -1,106 +1,39 @@
 {
-  // ✅ Enable Pylance for fast type checking
-  "python.analysis.enablePylance": true,
+  // Use the project's own virtual environment (.venv) for the Python
+  // interpreter, the terminal and Jupyter notebook kernels.
+  "python.terminal.activateEnvironment": true,
   "python.analysis.typeCheckingMode": "basic",
-
-  // ✅ Enable Pylance auto-import suggestions
   "python.analysis.autoImportCompletions": true,
 
-  // ✅ Disable missing type stub warnings for third-party libraries
-  "python.analysis.diagnosticSeverityOverrides": {
-    "reportMissingTypeStubs": "none"
+  // Ruff formats and lints Python files and notebook cells.
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
   },
+  "notebook.formatOnSave.enabled": true,
 
+  // Notebooks run from the project root, so paths like "data/file.csv"
+  // work wherever the notebook lives.
+  "jupyter.notebookFileRoot": "${workspaceFolder}",
 
-  // ✅ Automatically format code with Black on save
-  "editor.formatOnSave": true,
-  "python.formatting.provider": "none",
+  // Tests
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
 
-  // ✅ Enable Ruff as a fast linter
-  "ruff.enable": true,
-  "ruff.organizeImports": true,
-  "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit",
-    "source.organizeImports": "explicit"
-  },
-
-  // ✅ Exclude large directories from IntelliSense to improve performance
+  // Keep caches out of search and the file watcher
   "files.watcherExclude": {
     "**/.git/objects/**": true,
-    "**/.git/subtree-cache/**": true,
-    "**/node_modules/**": true,
-    "**/.ty_cache/**": true,
+    "**/.venv/**": true,
     "**/.ruff_cache/**": true,
     "**/__pycache__/**": true
   },
-
-  // ✅ Set default Python interpreter (modify as needed)
-  "python.defaultInterpreterPath": "./.venv/bin/python",
-  "python.pythonPath": "./.venv/bin/python",  // Add this as backup
-  "python.terminal.activateEnvironment": true,  // Make sure environment activation is enabled
-
-
-  // ✅ Improve workspace search by excluding non-code directories
   "search.exclude": {
-    "**/.ty_cache": true,
+    "**/.venv": true,
     "**/.ruff_cache": true,
-    "**/node_modules": true,
-    "**/__pycache__": true,
-    "**/.git": true
-  },
-// ✅ Enable test discovery and debugging
-  "python.testing.pytestEnabled": true,
-  "python.testing.unittestEnabled": false,
-  "python.testing.nosetestsEnabled": false,
-  "python.testing.autoTestDiscoverOnSaveEnabled": false,
-
-  // ✅ Enable better code navigation
-  "python.analysis.indexing": true,
-  "python.analysis.logLevel": "Information",
-  "python.analysis.autoSearchPaths": true,
-
-  // ✅ Enable better debugging experience
-  "debug.console.fontSize": 12,
-  "debug.console.wordWrap": true,
-  "debug.showBreakpointsInOverviewRuler": true,
-
-  // ✅ Enable better editor experience
-  "editor.suggestSelection": "first",
-  "editor.suggest.showStatusBar": true,
-  "editor.suggest.showWords": false,
-  "editor.quickSuggestions": {
-    "other": true,
-    "comments": false,
-    "strings": true
-  },
-
-  // ✅ Enable better file handling
-  "files.autoSave": "afterDelay",
-  "files.autoSaveDelay": 1000,
-  "files.exclude": {
-    "**/.DS_Store": true,
-    "**/.git": true,
-    "**/.hg": true,
-    "**/.svn": true
-  },
-
-  // ✅ Enable better terminal experience
-  "terminal.integrated.fontSize": 12,
-  "terminal.integrated.fontWeight": "normal",
-  "terminal.integrated.fontWeightBold": "bold",
-  "terminal.integrated.scrollback": 10000,
-  "terminal.integrated.cursorBlinking": true,
-
-  // ✅ Enable better workspace experience
-  "files.associations": {
-    "*.py": "python",
-    "*.ipynb": "python",
-    "*.ipynb.py": "python"
-  },
-
-  // ✅ Enable better git experience
-  "git.enableSmartCommit": true,
-  "git.enableSmartCherryPick": true,
-  "git.enableSmartPull": true,
-  "git.enableSmartPush": true
+    "**/__pycache__": true
+  }
 }

@@ -10,7 +10,6 @@ from uv_start.config import UserConfig
 from uv_start.exceptions import TemplateError
 from uv_start.parse_docs import (
     _copy_template,
-    _parse_replacement,
     _update_content,
 )
 
@@ -111,28 +110,71 @@ A project using Python {python_version}
     assert "test@example.com" in readme_content
 
 
-def test_python_version_matrix():
-    """Test Python version matrix generation for different Python versions"""
-    test_cases = [
-        ("3.14", 'python-version: ["3.14"]'),
-        ("3.13", 'python-version: ["3.13"]'),
-        ("3.12", 'python-version: ["3.12"]'),
-        ("3.11", 'python-version: ["3.11"]'),
-        ("3.10", 'python-version: ["3.10"]'),
-    ]
+def test_ci_template_uses_chosen_python(tmp_path):
+    """CI tests the -p version; release takes it from .python-version."""
+    from uv_start.parse_docs import _add_github_workflows
 
     mock_config = UserConfig(
         author_name="Test Author", author_email="test@example.com"
     )
+    project_dir = tmp_path / "test-project"
+    project_dir.mkdir()
     with patch("uv_start.parse_docs.load_config", return_value=mock_config):
-        for python_version, expected in test_cases:
-            args = Namespace(
-                python=python_version, project_name="test-project"
-            )
-            replacements = _parse_replacement(args, Path("/fake/path"))
+        for version in ["3.14", "3.12"]:
+            args = Namespace(python=version, project_name="test-project")
+            _add_github_workflows(project_dir)
+            _update_content(project_dir, args, ".github/workflows/ci.yml")
+            _update_content(project_dir, args, ".github/workflows/release.yml")
+            ci = (project_dir / ".github/workflows/ci.yml").read_text()
+            release = (
+                project_dir / ".github/workflows/release.yml"
+            ).read_text()
+            assert f'python-version: ["{version}"]' in ci
+            assert "python-version" not in release
+            assert "${{ env." not in release  # no shell injection
+            assert "uv sync --locked" in release
 
-            actual_matrix = replacements['python-version: ["3.12"]']
-            assert actual_matrix == expected, (
-                f"For Python {python_version}, expected {expected} "
-                f"but got {actual_matrix}"
-            )
+
+@pytest.mark.parametrize("lab", [False, True])
+def test_parse_docs_data(tmp_path, lab):
+    """A data project gets the notebook template set, and no launch.json.
+
+    The lab style, palette and CLAUDE.md only come with --lab.
+    """
+    from uv_start.parse_docs import parse_docs_data
+
+    mock_config = UserConfig(
+        author_name="Test Author", author_email="test@example.com"
+    )
+    project_dir = tmp_path / "my-analysis"
+    project_dir.mkdir()
+    args = Namespace(
+        python="3.14",
+        project_name="my-analysis",
+        github=False,
+        dotenv=False,
+        lab=lab,
+    )
+    with patch("uv_start.parse_docs.load_config", return_value=mock_config):
+        parse_docs_data(args, project_dir)
+
+    for name in [
+        "README.md",
+        "sample.ipynb",
+        ".gitignore",
+        ".vscode/settings.json",
+        ".vscode/extensions.json",
+    ]:
+        assert (project_dir / name).exists(), name
+    assert not (project_dir / ".vscode/launch.json").exists()
+    for name in ["CLAUDE.md", "colors.py", "hhlab_style01.mplstyle"]:
+        assert (project_dir / name).exists() == lab, name
+    readme = (project_dir / "README.md").read_text()
+    assert readme.startswith("# my-analysis")
+    assert "Select Kernel" in readme and "{project_name}" not in readme
+    notebook = (project_dir / "sample.ipynb").read_text()
+    assert "# my-analysis" in notebook and "sys.executable" in notebook
+    assert ("COLOR" in notebook) == lab
+    assert ("hhlab_style01" in notebook) == lab
+    gitignore = (project_dir / ".gitignore").read_text()
+    assert ".vscode/" not in gitignore.replace(".vscode/ are shared", "")
