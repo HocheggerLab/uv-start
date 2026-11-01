@@ -1,3 +1,4 @@
+import re
 from unittest.mock import patch
 
 import pytest
@@ -5,6 +6,18 @@ import rich_click as click
 from click.testing import CliRunner
 
 from uv_start.cli import cli, validate_project_name
+
+
+def plain_text(output: str) -> str:
+    """Flatten rich-click's error panel to one line of plain words.
+
+    On CI (GITHUB_ACTIONS / FORCE_COLOR) rich colours the panel and wraps it to
+    80 columns, so a message can be split across box-drawn lines. Strip the
+    ANSI codes and box characters and collapse whitespace before matching.
+    """
+    no_ansi = re.sub(r"\x1b\[[0-9;]*m", "", output)
+    no_box = re.sub(r"[─-╿]", " ", no_ansi)
+    return " ".join(no_box.split())
 
 
 def test_validate_project_name_valid():
@@ -130,7 +143,7 @@ def test_cli_lab_requires_data(mock_init):
     """--lab without --data is a usage error."""
     result = CliRunner().invoke(cli, ["my-project", "--lab"])
     assert result.exit_code != 0
-    assert "--lab can only be used with --data" in result.output
+    assert "--lab can only be used with --data" in plain_text(result.output)
     mock_init.assert_not_called()
 
 
