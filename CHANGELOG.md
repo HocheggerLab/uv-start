@@ -1,3 +1,14 @@
+## v0.8.0 (2026-11-01)
+
+### Feat
+
+- notebook-ready --data projects, --upgrade command, supply-chain hardening
+
+### Fix
+
+- let commitizen decide releases from every commit since the last tag
+- name change in docs
+
 ## v0.7.1 (2026-06-24)
 
 ### Fix
