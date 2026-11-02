@@ -1,3 +1,4 @@
+import io
 import os
 import shutil
 import sys
@@ -88,8 +89,23 @@ def initialize_uv_start(args: Namespace) -> None:
             )
 
 
+def _utf8_output() -> None:
+    """Print UTF-8 even where the console code page cannot (e.g. cp1252).
+
+    Windows Python encodes redirected or piped output with the ANSI code
+    page, which has no ✓ or box-drawing characters, so the first status
+    line would crash the run.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if not isinstance(stream, io.TextIOWrapper):
+            continue  # replaced by a test runner or an IDE
+        if stream.encoding.lower().replace("-", "") != "utf8":
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def main() -> None:
     """Console-script entry point. Delegates to the click command."""
+    _utf8_output()
     cli()
 
 
