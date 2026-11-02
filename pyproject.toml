@@ -1,6 +1,6 @@
 [project]
 name = "uv-start"
-version = "0.9.0"
+version = "0.9.1"
 description = "CLI tool to scaffold Python projects with uv, pre-configured dev tools, and optional GitHub integration"
 readme = "README.md"
 license = "MIT"

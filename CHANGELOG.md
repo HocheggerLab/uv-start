@@ -1,3 +1,10 @@
+## v0.9.1 (2026-11-02)
+
+### Fix
+
+- print UTF-8 on Windows consoles that use a legacy code page
+- make project creation work on Windows
+
 ## v0.9.0 (2026-11-02)
 
 ### Feat
