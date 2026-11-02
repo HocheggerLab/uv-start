@@ -21,6 +21,8 @@ _OriginalHelpFormatter = _click.HelpFormatter
 
 import rich_click as click  # noqa: E402
 
+from uv_start import __version__  # noqa: E402
+
 PROJECT_TYPES = ["lib", "package", "app"]
 # Python minors that still receive security fixes (3.10 reached end of
 # life in October 2026).
@@ -54,6 +56,7 @@ def _project_name_callback(
 
 
 @click.command()
+@click.version_option(__version__, "-V", "--version", prog_name="uv-start")
 @click.argument(
     "project_name", required=False, callback=_project_name_callback
 )

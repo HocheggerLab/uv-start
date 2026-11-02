@@ -5,6 +5,7 @@ import pytest
 import rich_click as click
 from click.testing import CliRunner
 
+from uv_start import __version__
 from uv_start.cli import cli, validate_project_name
 
 
@@ -173,3 +174,10 @@ def test_cli_cooldown_requires_upgrade():
 def test_cli_python_310_rejected():
     result = CliRunner().invoke(cli, ["proj", "-p", "3.10"])
     assert result.exit_code != 0
+
+
+@pytest.mark.parametrize("flag", ["--version", "-V"])
+def test_version_flag_prints_version(flag):
+    result = CliRunner().invoke(cli, [flag])
+    assert result.exit_code == 0
+    assert plain_text(result.output) == f"uv-start, version {__version__}"
