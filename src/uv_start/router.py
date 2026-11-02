@@ -93,7 +93,9 @@ class CommandDispatcher:
             tests_dir.mkdir(exist_ok=True)
             # Create an empty __init__.py in tests directory
             (tests_dir / "test_init.py").touch()
-            with open(tests_dir / "test_init.py", "w") as f:
+            with open(
+                tests_dir / "test_init.py", "w", encoding="utf-8", newline="\n"
+            ) as f:
                 f.write("def test_init():\n    assert True\n")
 
             rprint(
@@ -212,7 +214,9 @@ class CommandDispatcher:
             )
             tests_dir = self.project_path / "tests"
             tests_dir.mkdir(exist_ok=True)
-            with open(tests_dir / "test_init.py", "w") as f:
+            with open(
+                tests_dir / "test_init.py", "w", encoding="utf-8", newline="\n"
+            ) as f:
                 f.write("def test_init():\n    assert True\n")
             rprint(
                 f"[green]✓[/green] Successfully created napari plugin project '[bold]{self.args.project_name}[/bold]'"

@@ -106,18 +106,22 @@ def parse_dev_configs(project_path: Path) -> None:
     try:
         # Append shared configs to ALL pyproject.toml files
         for pyproject_toml in pyproject_toml_list:
-            with pyproject_toml.open("a") as pyproject_file:
+            with pyproject_toml.open(
+                "a", encoding="utf-8", newline="\n"
+            ) as pyproject_file:
                 for config_file in shared_config_files:
                     if config_file.exists():
-                        with config_file.open("r") as cf:
+                        with config_file.open("r", encoding="utf-8") as cf:
                             pyproject_file.write(f"\n{cf.read()}\n")
 
         # Append commitizen config ONLY to root pyproject.toml
         cz_config = config_dir / "commitizen-config.toml"
         if cz_config.exists():
             with (
-                (project_path / "pyproject.toml").open("a") as f,
-                cz_config.open("r") as cf,
+                (project_path / "pyproject.toml").open(
+                    "a", encoding="utf-8", newline="\n"
+                ) as f,
+                cz_config.open("r", encoding="utf-8") as cf,
             ):
                 f.write(f"\n{cf.read()}\n")
 
@@ -128,8 +132,10 @@ def parse_dev_configs(project_path: Path) -> None:
         # Appending blocks leaves blank lines at the end, which the
         # end-of-file-fixer hook would rewrite on the first commit.
         for pyproject_toml in pyproject_toml_list:
-            text = pyproject_toml.read_text()
-            pyproject_toml.write_text(text.rstrip() + "\n")
+            text = pyproject_toml.read_text(encoding="utf-8")
+            pyproject_toml.write_text(
+                text.rstrip() + "\n", encoding="utf-8", newline="\n"
+            )
 
         rprint("[green]Added config files to pyproject[/green]")
 
@@ -146,7 +152,7 @@ def _add_workspace_version_files(
     strings in all sub-packages.
     """
     root_pyproject = project_path / "pyproject.toml"
-    content = root_pyproject.read_text()
+    content = root_pyproject.read_text(encoding="utf-8")
 
     extra_entries = ""
     for package in packages:
@@ -166,4 +172,4 @@ def _add_workspace_version_files(
         + "\n]",
     )
 
-    root_pyproject.write_text(content)
+    root_pyproject.write_text(content, encoding="utf-8", newline="\n")
