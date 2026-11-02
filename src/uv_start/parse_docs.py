@@ -131,17 +131,19 @@ def parse_docs_napari(args: Namespace, project_dir: Path) -> None:
         "{module_name}": module_name,
     }
     manifest_path = src_dir / "napari.yaml"
-    content = manifest_path.read_text()
+    content = manifest_path.read_text(encoding="utf-8")
     for old, new in replacements.items():
         content = content.replace(old, new)
-    manifest_path.write_text(content)
+    manifest_path.write_text(content, encoding="utf-8", newline="\n")
 
     entry_points_template = (
         TEMPLATE_DIR / "napari-entry-points.toml"
-    ).read_text()
+    ).read_text(encoding="utf-8")
     for old, new in replacements.items():
         entry_points_template = entry_points_template.replace(old, new)
-    with (project_dir / "pyproject.toml").open("a") as f:
+    with (project_dir / "pyproject.toml").open(
+        "a", encoding="utf-8", newline="\n"
+    ) as f:
         f.write(f"\n{entry_points_template}\n")
     rprint("[green]napari entry points appended to pyproject.toml[/green]")
 
@@ -252,11 +254,11 @@ def _update_content(
         )
         for file in content_path:
             replacements = _parse_replacement(args, file)
-            with file.open("r") as f:
+            with file.open("r", encoding="utf-8") as f:
                 content = f.read()
             for old, new in replacements.items():
                 content = content.replace(old, new)
-            with file.open("w") as f:
+            with file.open("w", encoding="utf-8", newline="\n") as f:
                 f.write(content)
         rprint(f"[green]{content_type} successfully updated[/green]")
     except FileNotFoundError as e:
@@ -288,9 +290,13 @@ def _init_version(args: Namespace, project_dir: Path) -> None:
             # version + the config import that configures loguru on import.
             _write_single_package_init(root_init)
         elif root_type == "app":
-            root_init.write_text(_app_init_body(package_name))
+            root_init.write_text(
+                _app_init_body(package_name), encoding="utf-8", newline="\n"
+            )
         else:
-            root_init.write_text(_library_init_body())
+            root_init.write_text(
+                _library_init_body(), encoding="utf-8", newline="\n"
+            )
         rprint("[green]Root __init__.py initialized[/green]")
 
         # Handle sub-packages (workspace members)
@@ -309,7 +315,9 @@ def _init_version(args: Namespace, project_dir: Path) -> None:
                         if sub_package_name == COMMON_UTILS_MODULE
                         else _app_init_body(sub_package_name)
                     )
-                    with sub_init.open("w") as f:
+                    with sub_init.open(
+                        "w", encoding="utf-8", newline="\n"
+                    ) as f:
                         f.write(body)
                     rprint(
                         f"[green]Version file initialized for {sub_package_name}[/green]"
@@ -332,9 +340,9 @@ def _write_single_package_init(root_init: Path) -> None:
         "# Importing config configures loguru's sinks on package import.\n"
         "from . import config  # noqa: F401\n"
     )
-    existing = root_init.read_text()
+    existing = root_init.read_text(encoding="utf-8")
     body = f"{header}\n\n{existing.lstrip()}" if existing.strip() else header
-    root_init.write_text(body)
+    root_init.write_text(body, encoding="utf-8", newline="\n")
 
 
 def _library_init_body() -> str:

@@ -32,9 +32,32 @@ _ENV_ALLOWLIST = {
     "XDG_CACHE_HOME",
     "XDG_CONFIG_HOME",
     "XDG_DATA_HOME",
-    "USERPROFILE",  # Windows
-    "APPDATA",  # Windows
-    "SYSTEMROOT",  # Windows
+    # Proxies and custom CA bundles (university networks).
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    # Windows: without these, git, uv and pre-commit cannot find their own
+    # executables, caches or config (pre-commit reports "git failed").
+    "USERPROFILE",
+    "USERNAME",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PROGRAMDATA",
+    "PROGRAMFILES",
+    "PROGRAMFILES(X86)",
+    "COMMONPROGRAMFILES",
+    "SYSTEMROOT",
+    "SYSTEMDRIVE",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "OS",
+    "PROCESSOR_ARCHITECTURE",
+    "NUMBER_OF_PROCESSORS",
 }
 
 
@@ -44,7 +67,8 @@ def clean_env() -> dict[str, str]:
     Only passes through variables needed for process execution, explicitly
     excluding secrets and tokens that may be exported in the shell session.
     """
-    return {k: v for k, v in os.environ.items() if k in _ENV_ALLOWLIST}
+    # Windows environment names are case-insensitive ("Path", "SystemRoot").
+    return {k: v for k, v in os.environ.items() if k.upper() in _ENV_ALLOWLIST}
 
 
 @dataclass
@@ -87,6 +111,7 @@ def _git_config(key: str) -> str | None:
             ["git", "config", "--global", key],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
         )
         value = result.stdout.strip()
@@ -99,7 +124,7 @@ def save_config(name: str, email: str) -> None:
     """Write user config to ~/.config/uv-start/config.toml."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     content = f'[user]\nname = "{name}"\nemail = "{email}"\n'
-    CONFIG_FILE.write_text(content)
+    CONFIG_FILE.write_text(content, encoding="utf-8", newline="\n")
     rprint(
         Panel(
             f"[green]Configuration saved:[/green]\n"

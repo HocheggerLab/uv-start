@@ -69,6 +69,7 @@ def _run(
         env=clean_env(),
         check=False,
         text=True,
+        encoding="utf-8",
         capture_output=capture,
     )
 
@@ -90,7 +91,7 @@ def read_locked_versions(lock_path: Path) -> dict[str, str]:
     """
     if not lock_path.exists():
         return {}
-    lock = tomllib.loads(lock_path.read_text())
+    lock = tomllib.loads(lock_path.read_text(encoding="utf-8"))
     return {
         pkg["name"]: pkg["version"]
         for pkg in lock.get("package", [])
@@ -120,7 +121,7 @@ def ensure_cooldown(
             rather than a rolling ``"N days"`` span and ``days`` is None.
     """
     now = now or datetime.now(UTC)
-    doc = tomlkit.parse(pyproject_path.read_text())
+    doc = tomlkit.parse(pyproject_path.read_text(encoding="utf-8"))
     tool = doc.setdefault("tool", tomlkit.table())
     uv = tool.setdefault("uv", tomlkit.table())  # type: ignore[union-attr]
 
@@ -142,7 +143,9 @@ def ensure_cooldown(
         if not exemptions:
             del uv["exclude-newer-package"]  # type: ignore[union-attr]
 
-    pyproject_path.write_text(tomlkit.dumps(doc))
+    pyproject_path.write_text(
+        tomlkit.dumps(doc), encoding="utf-8", newline="\n"
+    )
     return days
 
 
@@ -157,14 +160,16 @@ def add_exemptions(
     if not packages:
         return
     stamp = (now or datetime.now(UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    doc = tomlkit.parse(pyproject_path.read_text())
+    doc = tomlkit.parse(pyproject_path.read_text(encoding="utf-8"))
     uv = doc["tool"]["uv"]  # type: ignore[index]
     exemptions = uv.setdefault(  # type: ignore[union-attr]
         "exclude-newer-package", tomlkit.inline_table()
     )
     for name in sorted(packages):
         exemptions[name] = stamp
-    pyproject_path.write_text(tomlkit.dumps(doc))
+    pyproject_path.write_text(
+        tomlkit.dumps(doc), encoding="utf-8", newline="\n"
+    )
 
 
 def parse_audit(report: str) -> list[Vulnerability]:
@@ -208,7 +213,7 @@ def check_python_version(project_dir: Path) -> str | None:
     pin_file = project_dir / ".python-version"
     if not pin_file.exists():
         return None
-    pin = pin_file.read_text().strip()
+    pin = pin_file.read_text(encoding="utf-8").strip()
     try:
         major, minor = (int(p) for p in pin.split(".")[:2])
     except ValueError:
@@ -278,7 +283,7 @@ def _upgrade(
         rprint(f"[red]⚠ {warning}[/red]")
     pin = project_dir / ".python-version"
     if pin.exists() and not dry_run:
-        version = pin.read_text().strip()
+        version = pin.read_text(encoding="utf-8").strip()
         if _run(["uv", "python", "upgrade", version], project_dir).returncode:
             rprint(f"[yellow]Could not upgrade Python {version}.[/yellow]")
 

@@ -95,10 +95,10 @@ jobs:
         for nb in $(find . -name "*.ipynb" -not -path "./.venv/*"); do
           uv run --with nbconvert jupyter nbconvert --to notebook --execute --output "$(basename "$nb" .ipynb)-run.ipynb" "$nb"
         done
-        uv run python -c "import pathlib; t = pathlib.Path('pyproject.toml').read_text(encoding='utf-8'); assert 'Zoë Łukasz 王芳' in t, 'author name mangled'; print('author name intact')"
         uv run python -c "import pathlib; [p.read_text(encoding='utf-8') for p in pathlib.Path('.').rglob('*') if p.is_file() and p.suffix in {'.md','.toml','.py','.ipynb'} and '.venv' not in p.parts]; print('all text files are valid UTF-8')"
 
-    - name: Library project tests pass
+    - name: Library project keeps the author name and its tests pass
       run: |
         cd "$RUNNER_TEMP/smoke-lib"
+        uv run python -c "import pathlib; t = pathlib.Path('pyproject.toml').read_text(encoding='utf-8'); assert 'Zoë Łukasz 王芳' in t, 'author name mangled'; print('author name intact')"
         uv run pytest -q
